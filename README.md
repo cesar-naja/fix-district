@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Fix District
 
-## Getting Started
+Public website for Fix District, a neighborhood electronics-repair shop (phones, laptops, tablets, consoles).
 
-First, run the development server:
+This milestone is the public-facing foundation only: home, services, and about pages with shared layout and design system. Authentication, data storage, bookings, payments, and dashboards are intentionally not built yet.
+
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
+npm run lint
+npm run build && npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> This project uses a recent Next.js with breaking changes from older versions. Before changing framework-level code, read `AGENTS.md` and the matching guide in `node_modules/next/dist/docs/`. `cacheComponents` and `partialPrefetching` are enabled in `next.config.ts`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+app/                 Routes: / , /services , /about , not-found, icon
+  globals.css        Design tokens (Tailwind v4 @theme) and base styles
+  layout.tsx         Fonts, metadata, skip link, header, footer
+components/
+  brand/             Wordmark and screw-head mark
+  illustrations/     Hero workbench scene and device line art (inline SVG)
+  layout/            SiteHeader, SiteFooter, NavLinks (the only client component)
+  ui/                Container, ButtonLink, SectionHeading, DeviceCard, ProcessList
+lib/site.ts          Site name, navigation, device categories, process steps, principles
+```
 
-## Learn More
+## Conventions
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Server Components by default.** The only client code is `components/layout/nav-links.tsx`, which reads the pathname to mark the current page.
+- **Content lives in `lib/site.ts`.** Edit copy there, not in components.
+- **Design tokens** (`paper`, `ink`, `accent`, …) are defined once in `app/globals.css`. Use the `display` class for headlines and `label` for small mono tags. Dark sections use `on-dark` so focus rings stay visible.
+- **Honest content.** No invented prices, turnaround times, reviews, certifications, addresses, or statistics. Add them only once the shop has confirmed them.
+- **Every visible action must work.** Do not add buttons or links for features that are not built. When booking or accounts arrive, add the destination first, then the link.
+- **Motion** is gated behind `prefers-reduced-motion` (see the end of `globals.css`).

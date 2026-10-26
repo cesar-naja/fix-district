@@ -1,26 +1,151 @@
 @import "tailwindcss";
 
+/*
+ * Fix District design tokens.
+ * One accent (workshop rust). Warm off-white paper, charcoal ink.
+ * Text pairings were checked against WCAG AA:
+ *   ink on paper 15.2:1 · ink-soft on paper 8.2:1 · muted on paper 6.0:1
+ *   accent on paper 5.3:1 · paper on accent 5.3:1
+ *   accent-bright on ink 7.1:1 · paper-dim on ink 8.3:1
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f5f0e6;
+  --paper-deep: #eae3d3;
+  --ink: #1c1b19;
+  --ink-raised: #2a2926;
+  --ink-soft: #4a4740;
+  --muted: #5e5a51;
+  --line: #cfc7b4;
+  --accent: #b03a12;
+  --accent-bright: #f58a5b;
+  --paper-dim: #b9b3a6;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-ink: var(--ink);
+  --color-ink-raised: var(--ink-raised);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-bright: var(--accent-bright);
+  --color-paper-dim: var(--paper-dim);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-archivo), var(--font-geist-sans), sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
+  background: var(--paper);
+  scroll-behavior: smooth;
+  /* Keeps in-page anchors from landing flush against the viewport edge. */
+  scroll-padding-top: 1.5rem;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography ------------------------------------------------------------ */
+
+/* Condensed, heavy, uppercase: the shop-sign voice used for headlines. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 72%;
+  text-transform: uppercase;
+  letter-spacing: -0.005em;
+  line-height: 0.92;
+  text-wrap: balance;
+}
+
+/* Small mono label, like a tag on a repair bench. */
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+.prose-measure {
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+
+/* Focus ----------------------------------------------------------------- */
+
+:focus-visible {
+  outline: 3px solid var(--focus-color, var(--accent));
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Dark sections swap in the brighter accent so the ring stays visible. */
+.on-dark {
+  --focus-color: var(--accent-bright);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--paper);
+}
+
+/* Motion ---------------------------------------------------------------- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: rotate(-3deg) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(0) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .anim-rise {
+    animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .anim-rise-delay {
+    animation: rise 0.7s 0.12s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .anim-settle {
+    animation: settle 0.9s 0.1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
