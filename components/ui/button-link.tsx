@@ -2,15 +2,24 @@ import Link from "next/link";
 import type { ComponentProps } from "react";
 
 type Variant = "primary" | "secondary";
+type Size = "default" | "compact";
 
 type ButtonLinkProps = ComponentProps<typeof Link> & {
   variant?: Variant;
+  /** "compact" keeps a 44px minimum target for use inside the site header. */
+  size?: Size;
   /** Use on charcoal backgrounds. */
   onDark?: boolean;
 };
 
 const base =
-  "inline-flex min-h-12 items-center justify-center gap-2 border-2 px-6 py-3 font-display text-sm font-bold uppercase tracking-[0.14em] transition-[background-color,color,transform] motion-safe:active:translate-y-px";
+  "inline-flex items-center justify-center gap-2 border-2 font-display font-bold uppercase transition-[background-color,color,transform] motion-safe:active:translate-y-px";
+
+const sizes: Record<Size, string> = {
+  default: "min-h-12 px-6 py-3 text-sm tracking-[0.14em]",
+  compact:
+    "min-h-11 whitespace-nowrap px-2.5 py-2 text-xs tracking-[0.06em] sm:px-4 sm:tracking-[0.12em]",
+};
 
 const styles: Record<"light" | "dark", Record<Variant, string>> = {
   light: {
@@ -31,6 +40,7 @@ const styles: Record<"light" | "dark", Record<Variant, string>> = {
  */
 export function ButtonLink({
   variant = "primary",
+  size = "default",
   onDark = false,
   className = "",
   ...props
@@ -38,7 +48,7 @@ export function ButtonLink({
   return (
     <Link
       {...props}
-      className={`${base} ${styles[onDark ? "dark" : "light"][variant]} ${className}`}
+      className={`${base} ${sizes[size]} ${styles[onDark ? "dark" : "light"][variant]} ${className}`}
     />
   );
 }

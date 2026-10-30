@@ -12,7 +12,7 @@ export function NavLinks({ items }: { items: readonly NavItem[] }) {
   const pathname = usePathname();
 
   return (
-    <ul className="flex items-center gap-1 sm:gap-2">
+    <ul className="flex items-center gap-0.5 sm:gap-2">
       {items.map((item) => {
         const isCurrent =
           item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
@@ -22,7 +22,7 @@ export function NavLinks({ items }: { items: readonly NavItem[] }) {
             <Link
               href={item.href}
               aria-current={isCurrent ? "page" : undefined}
-              className={`label inline-flex min-h-11 items-center border-b-2 px-3 py-2 transition-colors ${
+              className={`label inline-flex min-h-11 items-center border-b-2 px-2 py-2 sm:px-3 transition-colors ${
                 isCurrent
                   ? "border-accent text-ink"
                   : "border-transparent text-ink-soft hover:border-ink hover:text-ink"

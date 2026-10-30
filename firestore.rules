@@ -1,0 +1,26 @@
+rules_version = '2';
+
+// Fix District: Firestore client security rules.
+//
+// All repair data is read and written by the Next.js server through Firebase
+// Admin, never from the browser. These rules therefore deny every client
+// (web SDK) read and write.
+//
+// IMPORTANT: Firebase Admin BYPASSES these rules. They protect against direct
+// browser access only. Who may see or create which request is enforced in
+// application code (lib/auth/access.ts, lib/repairs/store.ts) and must stay
+// there.
+//
+// These rules are NOT deployed automatically. See README.md ("Firebase setup").
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /repairRequests/{requestId} {
+      allow read, write: if false;
+    }
+
+    // Deny-by-default for everything else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

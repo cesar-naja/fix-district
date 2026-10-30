@@ -60,7 +60,10 @@ export function SiteFooter() {
       <div className="border-t border-white/10">
         <Container className="flex flex-col gap-2 py-6 text-sm text-paper-dim sm:flex-row sm:items-center sm:justify-between">
           <p>© {SITE.name}</p>
-          <p>Online repair requests and customer accounts are not available yet.</p>
+          <p>
+            Sign in to request a repair online. Estimates, payments, and status
+            updates are not available yet.
+          </p>
         </Container>
       </div>
     </footer>

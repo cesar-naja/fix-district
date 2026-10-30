@@ -1,7 +1,9 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
 import { Archivo, Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { clerkAppearance, clerkLocalization } from "@/lib/clerk-appearance";
 import { SITE } from "@/lib/site";
 import "./globals.css";
 
@@ -48,17 +50,22 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${archivo.variable} h-full`}
     >
       <body className="flex min-h-full flex-col">
-        <a
-          href="#main"
-          className="label fixed left-4 top-4 z-50 -translate-y-24 bg-ink px-4 py-3 text-paper focus:translate-y-0 focus-visible:outline-accent-bright"
+        <ClerkProvider
+          appearance={clerkAppearance}
+          localization={clerkLocalization}
         >
-          Skip to content
-        </a>
-        <SiteHeader />
-        <main id="main" className="flex-1">
-          {children}
-        </main>
-        <SiteFooter />
+          <a
+            href="#main"
+            className="label fixed left-4 top-4 z-50 -translate-y-24 bg-ink px-4 py-3 text-paper focus:translate-y-0 focus-visible:outline-accent-bright"
+          >
+            Skip to content
+          </a>
+          <SiteHeader />
+          <main id="main" className="flex-1">
+            {children}
+          </main>
+          <SiteFooter />
+        </ClerkProvider>
       </body>
     </html>
   );
