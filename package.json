@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run tests/unit",
     "emulators": "firebase emulators:start --only firestore --project demo-fix-district",
-    "test": "firebase emulators:exec --only firestore --project demo-fix-district \"vitest run\""
+    "test": "firebase emulators:exec --only firestore --project demo-fix-district \"vitest run\"",
+    "test:e2e": "playwright test --project=chromium"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.21",
@@ -22,6 +23,7 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",

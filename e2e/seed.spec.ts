@@ -1,0 +1,10 @@
+import { test, expect } from '@playwright/test';
+
+// Seed test used by the Playwright planner/generator agents as the starting
+// point for new tests. It only covers public, signed-out pages.
+test.describe('Test group', () => {
+  test('seed', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible();
+  });
+});
