@@ -1,6 +1,6 @@
 # Fix District: Playwright E2E framework
 
-Status: **implemented and partly verified.** The environment, emulator, safety guards and server isolation are verified. The Clerk-dependent parts (role sign-in, seeds, smoke tests) are written and type-checked but **not yet run**, because they need a dedicated Clerk application that only you can create (section 9). Parallel execution is **not** claimed reliable until section 10 is done.
+Status: **implemented and verified with one worker.** The full suite (setup gate, role seeds, smoke checks) passes against the dedicated Clerk development application and the isolated emulator. Parallel execution is **not** claimed reliable until the two-worker check in section 10 passes.
 
 Browser tests live in `e2e/` and run with Playwright. Vitest (`tests/`) is separate.
 
@@ -126,9 +126,11 @@ No roles are set by hand: the framework gives the technician role only to its ow
 | E2E emulator starts on 8086 beside the normal one on 8085 | Verified |
 | Emulator helper: seed, budget, owner-scoped delete leaves other owners alone | Verified against the real emulator |
 | App server starts on 3100 with `.next-e2e` and the forced environment | Verified (placeholder Clerk key) |
-| Setup check 1 (emulator reachable and clean) | Passed in a real run |
-| Setup check 2 and everything after (Clerk sign-in, technician canary, smoke, seeds) | **Not run. Needs section 9.** |
+| Full run, one worker, dedicated Clerk dev app (`npm run test:e2e`) | **14 of 14 passed**: 2 setup, 3 seeds, 4 signed-out smoke, 5 role smoke (customer submit stored in the emulator, technician sees a seeded request, both 403 checks) |
+| No user-deletion warnings in that run | Observed (users are deleted by ID after the tag re-check) |
 | Two-worker parallel run | **Not run. No parallel-reliability claim.** |
+
+Known harmless noise in a passing run: `[Clerk Testing] FAPI request failed ... route.fetch: Target page, context or browser has been closed` is logged by `@clerk/testing` when a test's browser context closes while Clerk background requests are still in flight. The test has already finished. That log line includes a Clerk dev-browser ID in a URL, so treat run output as sensitive (section 8).
 
 After you finish section 9:
 
