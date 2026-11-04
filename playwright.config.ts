@@ -1,79 +1,103 @@
 import { defineConfig, devices } from '@playwright/test';
+import { loadE2EEnv } from './e2e/config/env';
 
 /**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
+ * Browser (E2E) tests. Design and rules: docs/e2e-framework.md.
+ *
+ * Everything environment-specific comes from e2e/config/env.ts, which validates
+ * it and refuses unsafe values (live Clerk keys, non-demo Firebase projects,
+ * non-loopback hosts). Run with `npm run test:e2e`, which also starts the
+ * Firestore emulator these tests use. Vitest (tests/) is separate.
  */
-// import dotenv from 'dotenv';
-// import path from 'path';
-// dotenv.config({ path: path.resolve(__dirname, '.env') });
+const env = loadE2EEnv();
 
 /**
- * See https://playwright.dev/docs/test-configuration.
+ * The app server's environment is built explicitly. It never inherits live
+ * Firebase settings from .env.local: the emulator is forced, the project is a
+ * "demo-" one, and the live service-account values are overridden with empty
+ * strings (Next.js does not override variables that are already set, empty
+ * included). lib/firebase/admin.ts also takes its credential-free emulator
+ * branch whenever FIRESTORE_EMULATOR_HOST is set.
  */
+const serverEnv: Record<string, string> = {
+  // Separate build directory, so this server can run beside a normal
+  // `npm run dev` (next dev locks <distDir>/dev/lock). See next.config.ts.
+  NEXT_DIST_DIR: '.next-e2e',
+
+  FIRESTORE_EMULATOR_HOST: env.emulatorHost,
+  FIREBASE_PROJECT_ID: env.firebaseProjectId,
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: env.firebaseProjectId,
+  FIREBASE_CLIENT_EMAIL: '',
+  FIREBASE_PRIVATE_KEY: '',
+  GOOGLE_APPLICATION_CREDENTIALS: '',
+  NEXT_PUBLIC_FIREBASE_API_KEY: '',
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: '',
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: '',
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '',
+  NEXT_PUBLIC_FIREBASE_APP_ID: '',
+  NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: '',
+
+  // The dedicated Clerk application, and the same sign-in routes as .env.example.
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: env.clerk.publishableKey,
+  CLERK_SECRET_KEY: env.clerk.secretKey,
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL: '/sign-in',
+  NEXT_PUBLIC_CLERK_SIGN_UP_URL: '/sign-up',
+  NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: '/',
+  NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: '/',
+};
+
+const serverCommand =
+  env.serverMode === 'build'
+    ? `npx next build && npx next start -p ${env.port}`
+    : `npx next dev -p ${env.port}`;
+
 export default defineConfig({
   testDir: './e2e',
-  /* Run tests in files in parallel */
+  /* Tests are independent, so files and tests inside them may run in parallel. */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
+  retries: process.env.CI ? 1 : 0,
+  /* One worker by default. Raise with E2E_WORKERS (max 4) once verified. */
+  workers: env.workers,
+  reporter: [['list'], ['html', { open: 'never' }]],
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
   use: {
-    /* Base URL to use in actions like `await page.goto('')`. */
-    baseURL: 'http://localhost:3000',
-
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    baseURL: env.baseUrl,
+    /*
+     * Traces, screenshots, and videos can contain cookies, request headers, and
+     * Clerk responses. Keep them private: they are git-ignored, and CI keeps
+     * traces off unless you opt in. Test data is synthetic.
+     */
+    trace: env.trace,
+    screenshot: 'only-on-failure',
+    video: 'off',
   },
 
-  /* Configure projects for major browsers */
   projects: [
     {
-      name: 'chromium',
+      /* Gate: emulator is up, and the app server reads from it. */
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
-
     {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      name: 'chromium',
+      testIgnore: /.*\.setup\.ts/,
+      dependencies: ['setup'],
+      use: { ...devices['Desktop Chrome'] },
     },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
   ],
 
-  /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+    command: serverCommand,
+    url: env.baseUrl,
+    /* Never attach to a server that is already running: it could be pointed at live data. */
+    reuseExistingServer: false,
+    timeout: env.serverMode === 'build' ? 300_000 : 120_000,
+    env: serverEnv,
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
 });
