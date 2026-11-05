@@ -2,18 +2,25 @@
   "name": "fix-district",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "e2e"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "typecheck:tests": "tsc --noEmit -p tests/tsconfig.json",
+    "typecheck:e2e": "npm run typecheck -w @fix-district/e2e",
+    "typecheck:all": "npm run typecheck && npm run typecheck:tests && npm run typecheck:e2e",
     "test:unit": "vitest run tests/unit",
     "emulators": "firebase emulators:start --only firestore --project demo-fix-district",
     "test": "firebase emulators:exec --only firestore --project demo-fix-district \"vitest run\"",
-    "emulators:e2e": "firebase emulators:start --config firebase.e2e.json --only firestore --project demo-fix-district-e2e",
-    "test:e2e": "firebase emulators:exec --config firebase.e2e.json --only firestore --project demo-fix-district-e2e \"playwright test\"",
-    "test:e2e:run": "playwright test"
+    "emulators:e2e": "npm run emulators -w @fix-district/e2e",
+    "test:e2e": "npm run test -w @fix-district/e2e",
+    "test:e2e:run": "npm run test:run -w @fix-district/e2e",
+    "test:e2e:unit": "npm run test:unit -w @fix-district/e2e"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.21",
@@ -25,9 +32,6 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@clerk/backend": "^3.26.5",
-    "@clerk/testing": "^2.2.53",
-    "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",

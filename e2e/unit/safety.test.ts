@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-// Pure guard module (no I/O, no imports). It is the only e2e file Vitest loads.
+// Pure guard module (no I/O, no imports). Run with `npm run test:unit -w @fix-district/e2e`.
 import {
   E2ESafetyError,
   assertClerkTestKeys,
@@ -9,7 +9,7 @@ import {
   frameworkUserTag,
   isTaggedForRun,
   publishableKeyHost,
-} from "../../e2e/support/safety";
+} from "../support/safety";
 
 const keyFor = (host: string, kind: "test" | "live" = "test") =>
   `pk_${kind}_${Buffer.from(`${host}$`).toString("base64")}`;

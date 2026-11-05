@@ -28,7 +28,7 @@ export type TestUser = {
  *    after re-reading the user and confirming the tag still matches this run
  *    and this application.
  *  - It never lists, searches, or sweeps users. Leftovers from a crashed run
- *    are removed by hand in the Clerk Dashboard (see .env.e2e.example).
+ *    are removed by hand in the Clerk Dashboard (see e2e/README.md).
  *
  * Roles are granted exactly as production grants them: `role: "technician"` in
  * private metadata, which only the Backend API (or Dashboard) can write.

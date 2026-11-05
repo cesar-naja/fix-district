@@ -152,7 +152,19 @@ npm test            # starts the Firestore emulator, then runs every test
 - the deny-by-default client rules (an unauthenticated web SDK client is refused)
 - the request form: labels, field errors, kept input after a failed save, saving state, repeated clicks
 
-The Clerk and Next.js session are replaced by test doubles in these tests. Signing in with real Clerk accounts is a manual check (see below).
+The Clerk and Next.js session are replaced by test doubles in these tests.
+
+#### Browser (end-to-end) tests
+
+Real browser tests live in the private npm workspace `e2e/` (`@fix-district/e2e`), separate from the Vitest suite above. They need a dedicated Clerk development application and their own Firestore emulator (port 8086); see [e2e/README.md](e2e/README.md) for the one-time private setup.
+
+```bash
+npm run test:e2e         # emulator + isolated app server (port 3100, .next-e2e) + Chromium tests
+npm run test:e2e:unit    # safety-guard unit tests (no services)
+npm run typecheck:all    # app + Vitest (tests/) + e2e type checks
+```
+
+`npm run typecheck` checks the application only (it is the same configuration `next build` type checks with); `typecheck:tests` and `typecheck:e2e` cover the other two. A normal `npm run dev` can keep running during E2E runs.
 
 ## Structure
 
@@ -181,7 +193,9 @@ lib/
   site.ts            Site name, navigation, device categories, process steps, principles
 proxy.ts             Signed-out gate for the dashboard routes
 tests/               Vitest: unit/ (no emulator) and integration/ (Firestore emulator)
+e2e/                 Private npm workspace: Playwright browser tests, plans, README
 firebase.json, firestore.rules, firestore.indexes.json   Emulator, client rules, index
+firebase.e2e.json    Emulator config for the browser tests (port 8086)
 .env.example         Placeholder environment variables
 ```
 

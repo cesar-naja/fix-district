@@ -12,10 +12,14 @@ import {
 /**
  * The single place browser-test configuration is read and validated.
  *
- * Values come from the shell, or from `.env.e2e.local` (git-ignored) when it
+ * Values come from the shell, or from `e2e/.env.local` (git-ignored) when it
  * exists. Real shell variables win over the file. Everything is prefixed
- * `E2E_`, so nothing is inherited from the app's own `.env.local`, which may
- * hold live credentials.
+ * `E2E_`, so nothing is inherited from the app's own root `.env.local`, which
+ * may hold live credentials.
+ *
+ * Paths are resolved from this file's location, not the working directory, so
+ * the result is the same whether Playwright is started from the repository
+ * root, from `e2e/`, or by an MCP server.
  *
  * Errors name the setting that is wrong. They never contain its value.
  */
@@ -56,16 +60,21 @@ const DEFAULTS = {
 
 let cached: E2EConfig | undefined;
 
+/** The e2e workspace directory (this file is e2e/config/env.ts). */
+export const E2E_DIR = path.resolve(__dirname, "..");
+/** The repository root, where the application and its own .env.local live. */
+export const REPO_ROOT = path.resolve(E2E_DIR, "..");
+
 function loadEnvFile(): void {
-  const file = path.resolve(process.cwd(), ".env.e2e.local");
+  const file = path.join(E2E_DIR, ".env.local");
   // Does not override variables already set in the shell.
   if (existsSync(file)) process.loadEnvFile(file);
 }
 
-/** The key the app itself uses in .env.local, only to refuse reusing it. Never logged. */
+/** The key the app itself uses in the root .env.local, only to refuse reusing it. Never logged. */
 function localAppPublishableKey(): string | undefined {
   try {
-    const file = path.resolve(process.cwd(), ".env.local");
+    const file = path.join(REPO_ROOT, ".env.local");
     const text = readFileSync(file, "utf8");
     const match = /^\s*NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY\s*=\s*"?([^"\r\n#]+?)"?\s*$/m.exec(
       text,
@@ -126,7 +135,7 @@ export function loadE2EEnv(): E2EConfig {
 
   if (problems.length > 0) {
     throw new E2ESafetyError(
-      `E2E configuration is incomplete or invalid:\n - ${problems.join("\n - ")}\nSee .env.e2e.example.`,
+      `E2E configuration is incomplete or invalid:\n - ${problems.join("\n - ")}\nSee e2e/.env.example (copy it to e2e/.env.local).`,
     );
   }
 

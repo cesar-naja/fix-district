@@ -116,7 +116,7 @@ export function assertDedicatedClerkApp(input: {
     .replace(/\/+$/, "");
   if (confirmed !== host) {
     throw new E2ESafetyError(
-      "E2E_CLERK_FRONTEND_API must equal the Frontend API host of the dedicated Clerk application (see .env.e2e.example).",
+      "E2E_CLERK_FRONTEND_API must equal the Frontend API host of the dedicated Clerk application (see e2e/.env.example).",
     );
   }
   if (

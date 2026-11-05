@@ -1,0 +1,23 @@
+{
+  "name": "@fix-district/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Browser (Playwright) tests for Fix District. See README.md.",
+  "scripts": {
+    "emulators": "firebase emulators:start --config ../firebase.e2e.json --only firestore --project demo-fix-district-e2e",
+    "test": "firebase emulators:exec --config ../firebase.e2e.json --only firestore --project demo-fix-district-e2e \"playwright test\"",
+    "test:run": "playwright test",
+    "test:unit": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@clerk/backend": "^3.26.5",
+    "@clerk/testing": "^2.2.53",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^22.20.5",
+    "firebase-admin": "^14.5.0",
+    "firebase-tools": "^15.34.2",
+    "typescript": "^5",
+    "vitest": "^5.0.5"
+  }
+}

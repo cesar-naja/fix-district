@@ -19,10 +19,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Generated Playwright output.
-    "playwright-report/**",
-    "test-results/**",
-    "blob-report/**",
+    // Generated Playwright output (browser tests live in the e2e workspace).
+    "e2e/playwright-report/**",
+    "e2e/test-results/**",
+    "e2e/blob-report/**",
   ]),
 ]);
 

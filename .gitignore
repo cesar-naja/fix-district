@@ -34,7 +34,6 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
-!.env.e2e.example
 
 # vercel
 .vercel
@@ -49,10 +48,13 @@ firestore-debug.log
 ui-debug.log
 *firebase-adminsdk*.json
 
-# Playwright
+# Playwright (browser tests live in the e2e workspace). Artifacts can contain
+# cookies and Clerk responses: git-ignored, keep them private.
 node_modules/
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
-/playwright/.auth/
+/e2e/test-results/
+/e2e/playwright-report/
+/e2e/blob-report/
+/e2e/playwright/.cache/
+/e2e/playwright/.auth/
+# Snapshots/console logs the Playwright MCP server writes into its working directory.
+/.playwright-mcp/

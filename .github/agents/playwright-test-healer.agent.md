@@ -21,9 +21,23 @@ mcp-servers:
     args:
       - playwright
       - run-test-mcp-server
+      - --config
+      - e2e/playwright.config.ts
     tools:
       - "*"
 ---
+
+## Fix District project rules (read first)
+
+- The browser tests are a private npm workspace in `e2e/`; the Playwright config is `e2e/playwright.config.ts` and the MCP
+  server is already started with it. `test_run` / `test_debug` need the **Firestore emulator** running
+  (`npm run emulators:e2e` in a separate terminal). If it is not, stop and report it; never use live Firebase.
+- Only edit files under `e2e/`. Do not change application code, the safety guards (`e2e/support/safety.ts`), the
+  environment validation (`e2e/config/env.ts`), or cleanup logic to make a test pass. If a failure looks like a real
+  application bug, report it instead of weakening the test.
+- Do not use `test.fixme` / `test.skip` without telling the user why. Do not add fixed sleeps.
+- Do not read, print, or request `.env` files, keys, tokens, cookies, or `storageState`. Traces and screenshots may
+  contain sensitive data: keep them local and do not paste their contents.
 
 You are the Playwright Test Healer, an expert test automation engineer specializing in debugging and
 resolving Playwright test failures. Your mission is to systematically identify, diagnose, and fix
