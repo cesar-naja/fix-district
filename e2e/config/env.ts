@@ -34,6 +34,11 @@ export type E2EConfig = Readonly<{
   workers: number;
   trace: "off" | "on" | "retain-on-failure" | "on-first-retry";
   emulatorHost: string;
+  /**
+   * The emulator hub ("host:port"). Its answer is how the framework tells the
+   * E2E emulator apart from any other process that happens to hold the port.
+   */
+  emulatorHub: string;
   firebaseProjectId: string;
   clerk: Readonly<{
     publishableKey: string;
@@ -54,9 +59,18 @@ export const MAX_WORKERS = 4;
 const DEFAULTS = {
   port: "3100",
   emulatorHost: "127.0.0.1:8086",
+  emulatorHub: "127.0.0.1:4401",
   firebaseProjectId: "demo-fix-district-e2e",
   workers: "1",
 } as const;
+
+/**
+ * The emulator that ../firebase.e2e.json defines. The runner starts an
+ * emulator itself only when the configured host and hub are exactly these;
+ * for any other values the emulator is yours to run (it is still validated).
+ */
+export const DEFAULT_EMULATOR_HOST: string = DEFAULTS.emulatorHost;
+export const DEFAULT_EMULATOR_HUB: string = DEFAULTS.emulatorHub;
 
 let cached: E2EConfig | undefined;
 
@@ -103,6 +117,7 @@ export function loadE2EEnv(): E2EConfig {
   const frontendApi = read("E2E_CLERK_FRONTEND_API");
   const port = Number(read("E2E_PORT", DEFAULTS.port));
   const emulatorHost = read("E2E_FIRESTORE_EMULATOR_HOST", DEFAULTS.emulatorHost);
+  const emulatorHub = read("E2E_EMULATOR_HUB", DEFAULTS.emulatorHub);
   const firebaseProjectId = read("E2E_FIREBASE_PROJECT_ID", DEFAULTS.firebaseProjectId);
   const workers = Number(read("E2E_WORKERS", DEFAULTS.workers));
   const serverMode = read("E2E_SERVER_MODE", process.env.CI ? "build" : "dev");
@@ -141,6 +156,7 @@ export function loadE2EEnv(): E2EConfig {
 
   // Hard guards. These throw on any violation.
   assertEmulatorOnly(emulatorHost, firebaseProjectId);
+  assertEmulatorOnly(emulatorHub, firebaseProjectId);
   assertClerkTestKeys(publishableKey, secretKey);
   assertDedicatedClerkApp({
     publishableKey,
@@ -170,6 +186,7 @@ export function loadE2EEnv(): E2EConfig {
     workers,
     trace: trace as E2EConfig["trace"],
     emulatorHost,
+    emulatorHub,
     firebaseProjectId,
     clerk: Object.freeze({ publishableKey, secretKey, frontendApi }),
   });

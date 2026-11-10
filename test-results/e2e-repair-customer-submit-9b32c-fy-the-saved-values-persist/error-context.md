@@ -6,8 +6,8 @@
 
 # Test info
 
-- Name: e2e\smoke\roles.spec.ts >> customer >> a submitted request is shown to its owner and stored in the emulator
-- Location: e2e\smoke\roles.spec.ts:26:7
+- Name: e2e\repair\customer-submit-persist.spec.ts >> Customer repair submission and persistence >> Submit a valid repair, open its details, reload, verify the saved values persist
+- Location: e2e\repair\customer-submit-persist.spec.ts:24:7
 
 # Error details
 

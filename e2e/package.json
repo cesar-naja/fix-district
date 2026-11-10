@@ -5,7 +5,7 @@
   "description": "Browser (Playwright) tests for Fix District. See README.md.",
   "scripts": {
     "emulators": "firebase emulators:start --config ../firebase.e2e.json --only firestore --project demo-fix-district-e2e",
-    "test": "firebase emulators:exec --config ../firebase.e2e.json --only firestore --project demo-fix-district-e2e \"playwright test\"",
+    "test": "playwright test",
     "test:run": "playwright test",
     "test:unit": "vitest run",
     "typecheck": "tsc --noEmit"

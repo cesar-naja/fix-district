@@ -10,10 +10,25 @@ import { loadE2EEnv, type E2EConfig } from "../config/env";
 import { createClerkTestUsers, type TestRole, type TestUser } from "../support/clerk-admin";
 import { uniqueMarker, type RepairFormInput } from "../support/data";
 import { createEmulatorData, type EmulatorData } from "../support/emulator";
+import { verifyEmulator } from "../support/preflight";
+import { LIST_NAME, repairRow } from "../pages/repair-list";
 
 /**
  * Every spec imports `test` and `expect` from here, never from
- * @playwright/test, so every test gets the same isolation guarantees.
+ * @playwright/test, so every test gets the same isolation guarantees and the
+ * same automatic prerequisites. No setup test has to run first.
+ *
+ * Prerequisites, and where each one lives:
+ *  - once per runner session (CLI run, UI session, agent run): the emulator is
+ *    started or reused, validated as the intended E2E emulator and checked for
+ *    leftovers (playwright.config.ts webServer + setup/global-setup.ts);
+ *  - once per worker, for every test (auto fixture `environment`): the
+ *    configuration is valid and the emulator still answers as the E2E one;
+ *  - once per worker, before a test first touches data (`emulator`, `customer`,
+ *    `otherCustomer`, `technician`, and so `seed` and the role pages): the app
+ *    server is proven to read this emulator (`appReadsEmulator`).
+ * A signed-out test needs none of the data prerequisites, so it creates no
+ * Clerk user and no record, and stays signed out.
  *
  * Scopes:
  *  - worker: configuration, Clerk testing token, Clerk user admin, emulator
@@ -32,8 +47,19 @@ export type Identity = TestUser & { storageState: StorageState };
 
 type WorkerFixtures = {
   cfg: E2EConfig;
+  /** Auto. The emulator answers and is the intended E2E emulator. */
+  environment: void;
   clerkTestingReady: true;
   clerkUsers: ReturnType<typeof createClerkTestUsers>;
+  /** Internal: emulator access without the app-reads-emulator proof (used for cleanup). */
+  emulatorData: EmulatorData;
+  /** Internal: true once the app server was shown to read this emulator. */
+  appReadsEmulator: true;
+  /** Internal: raw identities. Tests use the public ones below. */
+  customerIdentity: Identity;
+  otherCustomerIdentity: Identity;
+  technicianIdentity: Identity;
+  /** Emulator access for tests; first use proves the app reads this emulator. */
   emulator: EmulatorData;
   customer: Identity;
   otherCustomer: Identity;
@@ -127,6 +153,39 @@ async function openAs(
   return { context, page };
 }
 
+/**
+ * The app test server reads the emulator these tests use: a record written
+ * only to the emulator must appear in the app's own customer list. A server
+ * pointed at any other database would not show it. This proves the READ path
+ * for one query; the layers in docs/framework.md (explicit server environment,
+ * emulator-only test access, owner-scoped cleanup) are the actual protection.
+ * The record is owned by the worker's disposable customer and removed at once.
+ */
+async function verifyAppReadsEmulator(
+  browser: Browser,
+  cfg: E2EConfig,
+  emulator: EmulatorData,
+  customer: Identity,
+  workerIndex: number,
+): Promise<void> {
+  const marker = uniqueMarker(cfg.runId, workerIndex);
+  await emulator.seedRepair({ ownerId: customer.userId, marker });
+  try {
+    const { context, page } = await openAs(browser, cfg, customer, new Set(), []);
+    try {
+      await page.goto("/customer");
+      await expect(
+        repairRow(page, LIST_NAME.customer, marker),
+        "A record that exists only in the emulator is not visible to the app. The app server is not reading the emulator.",
+      ).toBeVisible({ timeout: 30_000 });
+    } finally {
+      await context.close();
+    }
+  } finally {
+    await emulator.deleteOwnedBy(customer.userId);
+  }
+}
+
 export const test = base.extend<TestFixtures, WorkerFixtures>({
   // ---- worker scope --------------------------------------------------------
   cfg: [
@@ -134,6 +193,18 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       await use(loadE2EEnv());
     },
     { scope: "worker" },
+  ],
+
+  // Runs for every test in the worker (signed-out ones included). Cheap: two
+  // read-only requests. Global setup already did the same once per session;
+  // repeating it here keeps a single selected test safe on its own and catches
+  // an emulator that stopped or was swapped mid-session.
+  environment: [
+    async ({ cfg }, use) => {
+      await verifyEmulator(cfg);
+      await use();
+    },
+    { scope: "worker", auto: true },
   ],
 
   clerkTestingReady: [
@@ -159,34 +230,84 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     { scope: "worker" },
   ],
 
-  emulator: [
-    async ({ cfg }, use) => {
+  // The test side's own access to the emulator: emulator-only, owner-scoped.
+  // Internal, so cleanup never has to wait for (or trigger) the app proof.
+  emulatorData: [
+    async ({ cfg, environment }, use) => {
+      void environment;
       await use(createEmulatorData(cfg));
     },
     { scope: "worker" },
   ],
 
-  customer: [
-    async ({ browser, cfg, clerkUsers, emulator }, use, workerInfo) => {
+  // Proves, once per worker, that the app server reads THIS emulator: a record
+  // that exists only here must show up in the app's own customer list. It uses
+  // the worker's customer, so the user is created once and reused by the tests.
+  appReadsEmulator: [
+    async ({ browser, cfg, emulatorData, customerIdentity }, use, workerInfo) => {
+      await verifyAppReadsEmulator(browser, cfg, emulatorData, customerIdentity, workerInfo.workerIndex);
+      await use(true);
+    },
+    { scope: "worker", timeout: 120_000 },
+  ],
+
+  // Raw identities: created lazily, deleted (records first, then the user) when
+  // the worker ends. Tests get them through the public fixtures below.
+  customerIdentity: [
+    async ({ browser, cfg, clerkUsers, emulatorData }, use, workerInfo) => {
       const identity = await createIdentity(browser, cfg, clerkUsers, "customer", workerInfo.workerIndex);
       await use(identity);
-      await emulator.deleteOwnedBy(identity.userId);
+      await emulatorData.deleteOwnedBy(identity.userId);
+    },
+    { scope: "worker", timeout: 90_000 },
+  ],
+
+  otherCustomerIdentity: [
+    async ({ browser, cfg, clerkUsers, emulatorData }, use, workerInfo) => {
+      const identity = await createIdentity(browser, cfg, clerkUsers, "customer", workerInfo.workerIndex);
+      await use(identity);
+      await emulatorData.deleteOwnedBy(identity.userId);
+    },
+    { scope: "worker", timeout: 90_000 },
+  ],
+
+  technicianIdentity: [
+    async ({ browser, cfg, clerkUsers }, use, workerInfo) => {
+      await use(await createIdentity(browser, cfg, clerkUsers, "technician", workerInfo.workerIndex));
+    },
+    { scope: "worker", timeout: 90_000 },
+  ],
+
+  // Public fixtures. Using any of them guarantees the app-reads-emulator proof
+  // has passed in this worker.
+  emulator: [
+    async ({ emulatorData, appReadsEmulator }, use) => {
+      if (!appReadsEmulator) throw new Error("The app was not shown to read the emulator.");
+      await use(emulatorData);
+    },
+    { scope: "worker" },
+  ],
+
+  customer: [
+    async ({ customerIdentity, appReadsEmulator }, use) => {
+      if (!appReadsEmulator) throw new Error("The app was not shown to read the emulator.");
+      await use(customerIdentity);
     },
     { scope: "worker" },
   ],
 
   otherCustomer: [
-    async ({ browser, cfg, clerkUsers, emulator }, use, workerInfo) => {
-      const identity = await createIdentity(browser, cfg, clerkUsers, "customer", workerInfo.workerIndex);
-      await use(identity);
-      await emulator.deleteOwnedBy(identity.userId);
+    async ({ otherCustomerIdentity, appReadsEmulator }, use) => {
+      if (!appReadsEmulator) throw new Error("The app was not shown to read the emulator.");
+      await use(otherCustomerIdentity);
     },
     { scope: "worker" },
   ],
 
   technician: [
-    async ({ browser, cfg, clerkUsers }, use, workerInfo) => {
-      await use(await createIdentity(browser, cfg, clerkUsers, "technician", workerInfo.workerIndex));
+    async ({ technicianIdentity, appReadsEmulator }, use) => {
+      if (!appReadsEmulator) throw new Error("The app was not shown to read the emulator.");
+      await use(technicianIdentity);
     },
     { scope: "worker" },
   ],
@@ -205,7 +326,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   },
 
   testHygiene: [
-    async ({ ownedIds, consoleNotes, emulator }, use, testInfo) => {
+    // Uses the internal emulator access on purpose: a signed-out test owns
+    // nothing, and must not create a Clerk user just to clean up nothing.
+    async ({ ownedIds, consoleNotes, emulatorData: emulator }, use, testInfo) => {
       await use();
       try {
         if (testInfo.status !== testInfo.expectedStatus) {

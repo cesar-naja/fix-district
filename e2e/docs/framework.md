@@ -32,7 +32,7 @@ e2e/                            private npm workspace "@fix-district/e2e"
   seed.spec.ts                  signed-out planner seed (kept, now uses fixtures)
   seed.customer.spec.ts         planner seed: disposable customer + one emulator request
   seed.technician.spec.ts       planner seed: disposable technician + one queued request
-  setup/environment.setup.ts    gate project: emulator check, read canary
+  setup/global-setup.ts         once per runner session: emulator identity + cleanliness
   smoke/public.spec.ts          signed-out smoke (4 tests)
   smoke/roles.spec.ts           per-role smoke (5 tests)
   config/env.ts                 load + validate E2E env, refuse unsafe values
@@ -62,7 +62,10 @@ The e2e code imports **nothing** from the application (`lib/`, `app/`, `componen
 | `support/emulator.ts` | Own Admin app, project ID only, no credential, `FIRESTORE_EMULATOR_HOST` forced. `seedRepair` (per-worker budget), `deleteOwnedBy`, `repairsOwnedBy`, `totalRepairs`. |
 | `fixtures/index.ts` | Worker scope: `cfg`, Clerk testing token, Clerk user admin, `emulator`, lazy `customer` / `otherCustomer` / `technician` identities (in-memory session). Test scope: `marker`, `seed`, `customerPage` / `otherCustomerPage` / `technicianPage`, and an auto `testHygiene` (failure notes, then owner-scoped cleanup). Variants `customerTest` / `technicianTest` make the default `page` already signed in (used by planner seeds). |
 | `pages/*` | Interactions and locators only. Assertions stay in tests. |
-| `setup/environment.setup.ts` | Gate. `chromium` depends on it. |
+| `support/preflight.ts` | `verifyEmulator` (answers, and the hub confirms it is the E2E emulator), `assertNoLeftoverRequests`. Read-only; never starts or stops anything. |
+| `setup/global-setup.ts` | Runs once per runner session (CLI run, UI session, each agent call), after the `webServer` entries: validates the config, the emulator identity and cleanliness. |
+
+**Prerequisites are automatic; there is no setup project.** The emulator and app server are `webServer` entries (the emulator is reused if one already answers, started otherwise, and only a process the runner started is stopped, with its process tree). `globalSetup` validates the emulator. Worker fixtures repeat the cheap check (`environment`, auto, every test) and prove the app reads the emulator (`appReadsEmulator`) before a test first uses `emulator`, `seed`, `customer`, `otherCustomer` or `technician`. The same steps therefore run in `playwright test`, in UI mode (global setup runs once when the UI opens) and in agent sessions (global setup runs on every setup/run call).
 
 ## 4. Safety layers and what they do and do not prove
 
@@ -71,9 +74,10 @@ The e2e code imports **nothing** from the application (`lib/`, `app/`, `componen
 3. **No server reuse**: `reuseExistingServer: false`, on port 3100.
 4. **Test-side Firestore access** is emulator-only (project ID, no credential) and **owner-scoped**: deletes are `where ownerId == <test user>`. The emulator-wide wipe is never called.
 5. **Separate emulator** (8086, `demo-fix-district-e2e`) from Vitest's (8085), so neither suite can wipe the other.
-6. **Gate canary** (`environment.setup.ts`): seeds a record that exists only in the emulator and requires the **technician queue** to show it.
+6. **Emulator identity** (`support/preflight.ts`, from global setup and every worker): the Firestore port must answer, and the emulator hub on the E2E hub port must report Firestore on that same port. The app's normal emulator, the Vitest emulator, and any stray process fail this check and are never used. The hub does not report a project ID, so layer 1 (`demo-` project) and `singleProjectMode` in `firebase.e2e.json` remain what ties the project down.
+7. **App-reads-emulator canary** (`appReadsEmulator` fixture, once per worker, before a test first touches data): seeds a record owned by the worker's disposable customer that exists only in the emulator, requires the app's own **customer list** to show it, then deletes it. This used to be the technician-queue check in a setup project; it proves the same thing (the server's Firestore reads hit this emulator) with the identity the tests already need.
 
-**What the canary does not prove.** It shows that the queue's *read* path sees the emulator. It is not proof that every operation, collection, or code path is isolated. Layers 2 to 4 are the actual protection; the canary is a tripwire for one failure mode (server pointed at a different database). The *write* path is exercised separately by the smoke test that submits a request through the form and then finds it in the emulator, which runs only after the gate passes.
+**What the canary does not prove.** It shows that one *read* path sees the emulator. It is not proof that every operation, collection, or code path is isolated. Layers 2 to 4 are the actual protection; the canary is a tripwire for one failure mode (server pointed at a different database). The *write* path is exercised separately by the smoke test that submits a request through the form and then finds it in the emulator. A signed-out test touches no data and so does not run the canary; a test that uses `emulator`, `seed` or any identity always does first.
 
 ## 5. Build-directory and lock isolation (verified)
 
@@ -99,7 +103,7 @@ Cleanup of users is **scoped by ownership, not pattern**: users carry `publicMet
 
 - Tests find their data by a unique `marker` in model and description, never by position, count, or ID.
 - Preconditions are written directly to the emulator with `seed`. Seeded IDs are random 40-hex strings.
-- **Newest-50 window.** The technician queue shows the newest 50 requests across all users. Each worker may hold at most **8** seeded requests (`SEEDED_REQUESTS_PER_WORKER`), `E2E_WORKERS` is capped at **4** (32 < 50), and the gate fails if the emulator already holds more than 10 leftovers. Tests needing many rows must use an owner-scoped list, not the queue. Empty-queue and 50-row behaviour stay in Vitest.
+- **Newest-50 window.** The technician queue shows the newest 50 requests across all users. Each worker may hold at most **8** seeded requests (`SEEDED_REQUESTS_PER_WORKER`), `E2E_WORKERS` is capped at **4** (32 < 50), and global setup fails the session if the emulator already holds more than 10 leftovers. Tests needing many rows must use an owner-scoped list, not the queue. Empty-queue and 50-row behaviour stay in Vitest.
 - Cleanup runs on pass and fail: per test (owner-scoped), per worker (owner-scoped, then users), and the emulator is discarded after `emulators:exec`.
 
 ## 8. Failure artifacts and sensitivity
@@ -143,6 +147,7 @@ No roles are set by hand: the framework gives the technician role only to its ow
 | Two workers, then three more consecutive two-worker runs, with a normal dev server running on port 3000 | **14 of 14 passed every time** (plus later one- and two-worker runs after adding action timeouts). The dev server was not disturbed |
 | Teardown | Dedicated Clerk app held 0 users before; 2 framework-tagged users were seen mid-run; **0 total, 0 tagged after every run** (checked by count, no identifiers printed). Emulator `repairRequests`: seen mid-run, **0 after**. Planner seed sessions end through the same teardown |
 | Relocated Playwright config via MCP | The `run-test-mcp-server --config` launched exactly as in `.cursor/mcp.json` lists all 6 spec/setup files; `planner_setup_page` ran the setup gate and the customer and technician seeds; `planner_save_plan` wrote `e2e/specs/repair-workflow.md` |
+| Automatic prerequisites (setup project removed; the three rows above predate this) | **CLI, verified:** standard `playwright test` runs pass with no setup test selected, including an individual repair test and an individual signed-out test (which creates no Clerk user). With nothing on the emulator ports, a run started the emulator through the runner, passed, and left no Java process or listening port. After the runs: 0 tagged users in the dedicated Clerk app, 0 `repairRequests` in the emulator. **Agents, verified:** `planner_setup_page` with the customer seed and with the signed-out seed against a reused emulator. **Not verified:** UI mode (it runs the same config and global setup once when it opens; the UI window could not be driven), a runner-started emulator inside an agent session, CI |
 
 The parallel claim is supported by those repeated runs on this machine, with one extra safeguard: seeded rows per worker are capped, and tests locate their own rows by marker. It has not been run in CI.
 
@@ -151,28 +156,30 @@ Known harmless noise in a passing run: `[Clerk Testing] FAPI request failed ... 
 Commands (from the repository root):
 
 ```powershell
-# One worker. Starts the emulator. Expect 14 tests: 2 setup, 9 smoke, 3 seeds.
-npm run test:e2e
+# One worker. The runner starts or reuses the emulator itself. No setup test to run first.
+npx playwright test            # or: npm run test:e2e
 
-# Parallel, two workers:
-$env:E2E_WORKERS = "2"; npm run test:e2e
+# One file, one test, or UI mode (any selection works on its own):
+npx playwright test repair/customer-submit-persist.spec.ts
+npx playwright test -g "lands on the customer dashboard"
+npx playwright test --ui
 
-# Filtered or repeated (emulator in a second terminal: npm run emulators:e2e):
-npx playwright test -c e2e/playwright.config.ts --workers=2 --repeat-each=3
+# Parallel, two workers; filtered or repeated:
+$env:E2E_WORKERS = "2"; npx playwright test
+npx playwright test --workers=2 --repeat-each=3
 ```
 
-**Planner/generator/healer sessions** need the emulator running (`npm run emulators:e2e`); the MCP server starts the app server itself. Snapshots and console logs the MCP browser tools write go to a `.playwright-mcp/` folder in the repository root (git-ignored, delete it when done). A planner seed stays paused (its disposable user and records alive) until the session ends. Verified: running another `planner_setup_page` (for example with the signed-out `e2e/seed.spec.ts`, which creates nothing) ends the previous seed through its normal teardown. Closing the page with `browser_close` did **not** end it, and killing the MCP process would skip teardown, so check the dedicated Clerk app for leftovers (users tagged `fix-district-e2e`) after an interrupted session.
+**Planner/generator/healer sessions** run the same automatic prerequisites on every setup/run call (emulator reused or started, app server started). A runner-started emulator is stopped and restarted with each call, so start one yourself (`npm run emulators:e2e`) for faster sessions; it is reused and never stopped by the runner. Snapshots and console logs the MCP browser tools write go to a `.playwright-mcp/` folder in the repository root (git-ignored, delete it when done). A planner seed stays paused (its disposable user and records alive) until the session ends. Verified: running another `planner_setup_page` (for example with the signed-out `e2e/seed.spec.ts`, which creates nothing) ends the previous seed through its normal teardown. Closing the page with `browser_close` did **not** end it, and killing the MCP process would skip teardown, so check the dedicated Clerk app for leftovers (users tagged `fix-district-e2e`) after an interrupted session.
 
-**Windows note.** After `emulators:exec` the Java emulator process can stay alive (the README documents the same for port 8085). If the next run says the port is taken, stop the process on 8086:
-`Get-NetTCPConnection -LocalPort 8086 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }`.
-Use `npm run test:e2e:run` or `npx playwright test <args>` for filtered runs (with `npm run emulators:e2e` running); `npm run test:e2e` cannot forward arguments to Playwright.
+**Emulator lifecycle.** An emulator the runner starts is stopped with its whole process tree at the end of the session (verified: no Java process or listening port remained). An emulator already running is reused after global setup confirms through the hub that it is the E2E emulator, and is never stopped by the runner. If something else holds the E2E ports, the run stops with an error and the process is left alone; stop it yourself (`Get-NetTCPConnection -LocalPort 8086 -State Listen` shows the owner). The runner starts an emulator only for the default host and hub; with `E2E_FIRESTORE_EMULATOR_HOST` or `E2E_EMULATOR_HUB` overridden it is yours to run.
+`npm run test:e2e` is plain `playwright test` now, so it no longer wraps the run in `emulators:exec`.
 
 ## 11. Browser tests vs Vitest
 
 | | Vitest | Playwright |
 | --- | --- | --- |
 | Package | root `package.json` | `@fix-district/e2e` workspace |
-| Location / names | `tests/`, `*.test.ts(x)` | `e2e/`, `*.spec.ts`, `*.setup.ts` |
+| Location / names | `tests/`, `*.test.ts(x)` | `e2e/`, `*.spec.ts` |
 | TypeScript check | `npm run typecheck:tests` | `npm run typecheck:e2e` |
 | Auth | Mocked | Real Clerk dev sessions |
 | App code | Imported (`server-only` stubbed) | Black box over HTTP; no `lib/` imports |
