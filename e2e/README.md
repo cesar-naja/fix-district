@@ -12,9 +12,9 @@ There is nothing to start and no setup test to run first. The standard Playwrigh
 
 ```powershell
 npx playwright test                                    # everything (one worker)
-npx playwright test repair/customer-submit-persist.spec.ts   # one file
+npx playwright test tests/repairs/customer-submit-persist.spec.ts   # B1-01, one file
 npx playwright test -g "lands on the customer dashboard"     # one test by title
-npx playwright test --ui                               # UI mode: pick any test and click Run
+npx playwright test --ui                               # UI mode: smoke + repairs only; click any play button
 $env:E2E_WORKERS = "2"; npx playwright test            # parallel (max 4)
 
 npm run test:e2e:unit         # the safety-guard unit tests (no services needed)
@@ -74,10 +74,10 @@ The emulator is started automatically only for the default host and hub. If you 
 | `config/env.ts` | loads and validates `e2e/.env.local` plus shell, refuses unsafe values |
 | `support/` | `safety.ts` guards, `preflight.ts` (emulator identity and leftover checks), `clerk-admin.ts`, `emulator.ts`, `data.ts` |
 | `fixtures/index.ts` | `test` / `customerTest` / `technicianTest` / `expect`, including the automatic prerequisites |
-| `pages/` | page objects (locators and actions only) |
+| `pages/` | page objects (locators and reusable actions only) |
 | `setup/global-setup.ts` | once per runner session: emulator identity and cleanliness |
-| `smoke/`, `repair/`, `seed*.spec.ts` | the browser checks and the planner seeds |
-| `specs/` | test plans produced by the planner agent (review before generating tests) |
+| `tests/smoke/`, `tests/repairs/` | the regular browser suite (the only specs `npx playwright test` discovers) |
+| `planner/` | `playwright.config.ts` (MCP config, seeds only), `seeds/` (planner seeds), `plans/` (Markdown plans; review before generating tests) |
 | `unit/` | Vitest tests for the guards (`vitest.config.mts`) |
 | `../firebase.e2e.json` | emulator config (port 8086), at the root because the Firebase CLI can only reference rules inside the config's folder |
 
@@ -91,14 +91,42 @@ screenshots and network data can contain cookies and Clerk responses.
 - Cleanup is owner-scoped: only the users and records a run created, never a wipe or a pattern sweep.
 - No production authentication bypass was added; sign-in uses Clerk's testing helpers.
 
-## Agents (planner / generator / healer)
+## Open the UI and run repair tests
 
-Definitions: `../.cursor/agents/` (Cursor) and `../.github/agents/` (VS Code / Copilot). Both start the Playwright MCP
-server with `--config e2e/playwright.config.ts` (see `../.cursor/mcp.json`, `../.vscode/mcp.json`). The emulator and
-app server start automatically, as for any runner (see "How prerequisites work"). A paused seed session holds port
-3100 until the next setup call or the end of the session; close UI mode before using agents, and the reverse.
-Plans go to `specs/`.
+From the repository root, nothing else needs to be running (no emulator, no app server, no sign-in, no setup test):
 
+```powershell
+npx playwright test --ui                                          # opens the UI; click the play button on any test
+npx playwright test tests/repairs                                 # all repair tests, headless
+npx playwright test tests/repairs/customer-submit-persist.spec.ts # B1-01 only
+```
+
+Opening the UI starts the Firestore emulator and the app server and runs the global-setup checks once; the
+fixtures create and delete the disposable Clerk users and records. Closing the UI stops what it started. The UI lists
+only `tests/smoke` and `tests/repairs`: planner seeds and Vitest tests are not discovered. Any new test that imports
+`test`, `customerTest` or `technicianTest` from `fixtures` gets the same behaviour.
+
+## Planner / generator / healer agents
+
+Definitions: `../.cursor/agents/` (Cursor) and `../.github/agents/` (VS Code / Copilot). They use the Playwright test
+MCP server, started with its own config, `e2e/planner/playwright.config.ts` (see `../.cursor/mcp.json`,
+`../.vscode/mcp.json`; the path is repo-relative on purpose, `${workspaceFolder}` hit a Windows drive-letter casing
+problem). That config reuses `playwright.config.ts` and only changes test discovery to `planner/seeds/seed*.spec.ts`.
+
+```powershell
+# What the MCP server runs (the agents start it for you):
+npx playwright run-test-mcp-server --config e2e/planner/playwright.config.ts
+# List the seeds the planner can open:
+npx playwright test --list --config e2e/planner/playwright.config.ts
+```
+
+Invoke the planner agent in Cursor with a prompt such as: "Use the playwright-test-planner agent with seed
+`e2e/planner/seeds/seed.customer.spec.ts` to plan <area>". Seeds: `seed.spec.ts` (signed out), `seed.customer.spec.ts`,
+`seed.technician.spec.ts`. Plans are saved to `planner/plans/`. Generated tests go to `tests/repairs/` or
+`tests/smoke/`, with a `// spec:` header pointing at the plan and a `// seed:` line.
+
+The emulator and app server start automatically, as for any runner. A paused seed session holds port 3100 until the
+next setup call or the end of the session; close UI mode before using agents, and the reverse.
 ## Windows note
 
 If a run reports the emulator ports (8086, 4401, 9151) in use and the run was not started by this runner, something

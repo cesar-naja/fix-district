@@ -1,16 +1,16 @@
-// spec: e2e/specs/repair-workflow-approved-batch-1.md
+// spec: e2e/planner/plans/repair-workflow-approved-batch-1.md
 // scenario: B1-01 (source: CUS-01 steps 3 to 5, plus the reload step from CUS-05;
-//   see e2e/specs/repair-workflow-planner.md)
+//   see e2e/planner/plans/repair-workflow-planner.md)
 // requirements: R4, R7, R9, R11
-// seed (exploration only, not a dependency): e2e/seed.customer.spec.ts
+// seed (exploration only, not a dependency): e2e/planner/seeds/seed.customer.spec.ts
 //
 // The test creates its own prerequisites: the disposable `customer` fixture and
 // no records. It does not use any record created by the seed.
 
 import type { Locator, Page } from "@playwright/test";
-import { test, expect } from "../fixtures";
-import { RepairFormPage } from "../pages/repair-form.page";
-import { repairInput } from "../support/data";
+import { test, expect } from "../../fixtures";
+import { RepairFormPage } from "../../pages/repair-form.page";
+import { repairInput } from "../../support/data";
 
 /** The <dd> of a labelled fact (<dt>label</dt><dd>value</dd>) on the request detail page. */
 function fact(page: Page, label: string): Locator {

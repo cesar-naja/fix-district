@@ -74,10 +74,13 @@ const serverCommand =
     : `npx next dev -p ${env.port}`;
 
 export default defineConfig({
-  testDir: path.resolve(__dirname),
-  /* Only browser specs. e2e/unit holds Vitest tests for the safety guards. */
+  /*
+   * The regular browser suite: tests/smoke and tests/repairs only. Planner seeds
+   * (planner/) have their own config, planner/playwright.config.ts, and the
+   * Vitest guard tests (unit/) are outside this folder.
+   */
+  testDir: path.join(__dirname, 'tests'),
   testMatch: '**/*.spec.ts',
-  testIgnore: ['**/node_modules/**', 'unit/**'],
   /* Generated artifacts stay inside this workspace (git-ignored, keep private). */
   outputDir: path.join(__dirname, 'test-results'),
   /* Tests are independent, so files and tests inside them may run in parallel. */
@@ -126,7 +129,6 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testIgnore: ['**/node_modules/**', 'unit/**'],
       use: { ...devices['Desktop Chrome'] },
     },
   ],

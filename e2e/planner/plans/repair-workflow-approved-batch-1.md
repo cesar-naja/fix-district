@@ -1,6 +1,6 @@
 # Repair workflow: approved batch 1 (for review)
 
-Main reference: `e2e/specs/repair-workflow-planner.md` ("the planner plan"). Requirement IDs (R4, R7, ...) and observation labels below are the planner plan's. `e2e/specs/repair-workflow.md` was not used.
+Main reference: `e2e/planner/plans/repair-workflow-planner.md` ("the planner plan"). Requirement IDs (R4, R7, ...) and observation labels below are the planner plan's. `e2e/planner/plans/repair-workflow.md` was not used.
 
 Status: PLAN ONLY. No tests are generated. Four independent scenarios, each traceable to its source scenario ID.
 

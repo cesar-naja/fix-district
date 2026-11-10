@@ -6,7 +6,7 @@
 
 Scope: the implemented repair workflow of Fix District (Next.js 16.4.3, Clerk auth, Firestore via Firebase Admin on the E2E emulator). Customers submit a repair request at /customer/new, see their own requests at /customer and /customer/repairs/[id]; technicians see every request at /technician and /technician/repairs/[id] (read-only). Status is always "Submitted" in this milestone.
 
-This plan is INDEPENDENT. It was produced from live exploration through the playwright-test MCP server plus the repository docs/code listed in section 3. It does not use e2e/specs/repair-workflow.md. PLAN ONLY: no tests were generated and no application code was changed.
+This plan is INDEPENDENT. It was produced from live exploration through the playwright-test MCP server plus the repository docs/code listed in section 3. It does not use e2e/planner/plans/repair-workflow.md. PLAN ONLY: no tests were generated and no application code was changed.
 
 Every statement is labelled:
 - OBSERVED = actually seen in the browser during this exploration (seed session named).
@@ -19,12 +19,12 @@ Priorities: P0 = security/data-integrity/core flow, P1 = important validation/UX
 # 2. Environment & seeds
 
 - App server: http://localhost:3100 (started by the MCP server, .next-e2e, never port 3000). Firestore emulator for E2E on 8086, project demo-fix-district-e2e (already running; not touched). Clerk: dedicated development app, disposable users only. Source: e2e/docs/framework.md, e2e/README.md.
-- Seeds used (project chromium): e2e/seed.spec.ts (signed-out, creates nothing), e2e/seed.customer.spec.ts (disposable customer + 1 emulator request; default page signed in), e2e/seed.technician.spec.ts (disposable technician + 1 queued request owned by a synthetic owner). Only one seed session is alive at a time; the second customer fixture (otherCustomer) and customerPage/otherCustomerPage/technicianPage exist only in test fixtures (e2e/fixtures/index.ts), NOT in the seeds, so two-actor scenarios cannot be explored through the planner and are UNVERIFIED here.
-- Sessions in this exploration: signed-out x1 (plus a final signed-out call to tear down), customer x1, technician x1. planner_setup_page call counts: e2e/seed.spec.ts = 2, e2e/seed.customer.spec.ts = 1, e2e/seed.technician.spec.ts = 1.
+- Seeds used (project chromium): e2e/planner/seeds/seed.spec.ts (signed-out, creates nothing), e2e/planner/seeds/seed.customer.spec.ts (disposable customer + 1 emulator request; default page signed in), e2e/planner/seeds/seed.technician.spec.ts (disposable technician + 1 queued request owned by a synthetic owner). Only one seed session is alive at a time; the second customer fixture (otherCustomer) and customerPage/otherCustomerPage/technicianPage exist only in test fixtures (e2e/fixtures/index.ts), NOT in the seeds, so two-actor scenarios cannot be explored through the planner and are UNVERIFIED here.
+- Sessions in this exploration: signed-out x1 (plus a final signed-out call to tear down), customer x1, technician x1. planner_setup_page call counts: e2e/planner/seeds/seed.spec.ts = 2, e2e/planner/seeds/seed.customer.spec.ts = 1, e2e/planner/seeds/seed.technician.spec.ts = 1.
 - Tooling limits OBSERVED: browser_route, browser_network_state_set and browser_reload were listed by tool discovery but returned "Tool not found" when called. Network faults were therefore simulated only by an in-page window.fetch stub (page JavaScript, not a network-level fault). browser_run_code_unsafe exists but was deliberately NOT used (RCE-equivalent).
 - Facts for test authors (OBSERVED): (a) the device-type radios are visually hidden (class sr-only); getByRole('radio').check()/fill timed out after 15 s because the wrapping <label> intercepts pointer events; click the label text (getByText('Phone', {exact:true})) instead. (b) Success and error headings are upper-cased by CSS, so innerText is upper case while the accessible/DOM text is mixed case; assert on role/name or textContent, not innerText. (c) /dashboard redirect for a signed-in user happens client-side after streaming (navigation redirectCount 0), so assert with an auto-retrying toHaveURL, not an immediate URL check. (d) Document navigations for 403/404 pages return HTTP 200 (see POSSIBLE BUG PB-1). (e) A well-formed test ID is 40 lowercase hex characters.
 
-# 3. Requirements traceability (sources; none from e2e/specs/repair-workflow.md)
+# 3. Requirements traceability (sources; none from e2e/planner/plans/repair-workflow.md)
 
 | Req | Requirement | Source |
 | --- | --- | --- |
@@ -98,11 +98,11 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 ### 1. A. Signed-out access restrictions
 
-**Seed:** `e2e/seed.spec.ts`
+**Seed:** `e2e/planner/seeds/seed.spec.ts`
 
 #### 1.1. AUTH-01 [P0, browser E2E, OBSERVED] Signed-out visitors are redirected to sign-in from every protected route and see no repair data
 
-**File:** `e2e/repair/auth-signed-out.spec.ts`
+**File:** `e2e/tests/repairs/auth-signed-out.spec.ts`
 
 **Steps:**
   1. META. Preconditions: fresh signed-out browser context (seed.spec.ts), no data needed. Test data: none. Requirement: R1 (README.md, proxy.ts). Status: OBSERVED in signed-out seed session. Layer: browser E2E.
@@ -116,11 +116,11 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 ### 2. B. Customer: submission, validation, persistence, lists, details
 
-**Seed:** `e2e/seed.customer.spec.ts`
+**Seed:** `e2e/planner/seeds/seed.customer.spec.ts`
 
 #### 2.1. CUS-01 [P0, browser E2E, OBSERVED] Customer submits a valid request and it is persisted with server-assigned fields
 
-**File:** `e2e/repair/customer-submit-happy.spec.ts`
+**File:** `e2e/tests/repairs/customer-submit-happy.spec.ts`
 
 **Steps:**
   1. META. Preconditions: signed-in disposable customer (customerTest), one seeded request present. Test data: unique marker M; deviceType Phone, brand "E2E Brand", model "Model <M>", description "Synthetic problem description for automated testing <M>.". Requirements: R4, R7, R8, R9, R10. Layer: browser E2E (+ emulator read via support/emulator.ts repairsOwnedBy for the stored document).
@@ -141,7 +141,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 2.2. CUS-02 [P0, browser E2E, OBSERVED] Submitting an empty form shows all four required errors and saves nothing
 
-**File:** `e2e/repair/customer-validation-required.spec.ts`
+**File:** `e2e/tests/repairs/customer-validation-required.spec.ts`
 
 **Steps:**
   1. META. Preconditions: signed-in customer on /customer/new, count N of rows in "My repair requests, newest first" recorded from /customer (seed gives N>=1). Test data: none. Requirements: R5, R6. Layer: browser E2E.
@@ -156,7 +156,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 2.3. CUS-03 [P1, browser E2E, OBSERVED client-side] Field boundary and invalid values per field
 
-**File:** `e2e/repair/customer-validation-boundaries.spec.ts`
+**File:** `e2e/tests/repairs/customer-validation-boundaries.spec.ts`
 
 **Steps:**
   1. META. Preconditions: signed-in customer on /customer/new; record N from /customer. Test data: description of 9 and 10 characters; description 1000 and 1001 characters; brand 60/61 characters; model 80/81 characters; brand of only spaces; no device type. Requirements: R4, R5. Layer: browser E2E for client check; integration for the server check (G2).
@@ -172,7 +172,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 2.4. CUS-04 [P1, browser E2E, OBSERVED] Input normalisation and HTML escaping
 
-**File:** `e2e/repair/customer-sanitisation.spec.ts`
+**File:** `e2e/tests/repairs/customer-sanitisation.spec.ts`
 
 **Steps:**
   1. META. Preconditions: signed-in customer. Test data: brand "  Planner   Brand  ", model `PLN-R2 <b>x</b> & "q"`, description "Line one: screen flickers.\n\nLine three <script>window.__xss=1</script> after 2 days.  Two  spaces.". Requirement: R4 (clean()). Layer: browser E2E.
@@ -185,7 +185,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 2.5. CUS-05 [P0, browser E2E, OBSERVED] Saved requests survive refresh, fresh navigation and client-side navigation
 
-**File:** `e2e/repair/customer-persistence.spec.ts`
+**File:** `e2e/tests/repairs/customer-persistence.spec.ts`
 
 **Steps:**
   1. META. Preconditions: signed-in customer with the seeded request. Test data: marker M. Requirements: R9, R10, R14. Layer: browser E2E.
@@ -199,7 +199,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 2.6. CUS-06 [P0, browser E2E, OBSERVED] Duplicate submission prevention: double click, same-tick resubmit, refresh, back button
 
-**File:** `e2e/repair/customer-duplicate-submission.spec.ts`
+**File:** `e2e/tests/repairs/customer-duplicate-submission.spec.ts`
 
 **Steps:**
   1. META. Preconditions: signed-in customer; record the count N of rows with the unique marker (0) and the total list size T. Test data: three distinct markers M1, M2, M3 (one per sub-case). Requirement: R8. Layer: browser E2E (+ emulator document count for the owner as the authoritative check).
@@ -217,7 +217,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 2.7. CUS-07 [P0, browser E2E, OBSERVED] Forged ownership/status/timestamp/role fields are ignored
 
-**File:** `e2e/repair/customer-forged-fields.spec.ts`
+**File:** `e2e/tests/repairs/customer-forged-fields.spec.ts`
 
 **Steps:**
   1. META. Preconditions: signed-in customer on /customer/new. Test data: add hidden inputs ownerId=user_victim_planner, status=completed, createdAt=1999-01-01T00:00:00.000Z, role=technician, then a valid request with marker M. Requirement: R7. Layer: browser E2E; integration covers the same (tests/integration/action.test.ts).
@@ -229,7 +229,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 2.8. CUS-08 [P1, browser E2E, OBSERVED] Customer request list: ordering, content and links
 
-**File:** `e2e/repair/customer-list.spec.ts`
+**File:** `e2e/tests/repairs/customer-list.spec.ts`
 
 **Steps:**
   1. META. Preconditions: customer with the seeded request plus two requests created in order A then B. Requirements: R10. Layer: browser E2E.
@@ -241,7 +241,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 2.9. CUS-09 [P1, browser E2E, PARTLY OBSERVED] Customer 404 handling for missing, malformed and mis-cased request ids
 
-**File:** `e2e/repair/customer-detail-404.spec.ts`
+**File:** `e2e/tests/repairs/customer-detail-404.spec.ts`
 
 **Steps:**
   1. META. Preconditions: signed-in customer with at least one own request (id OWN). Test data: well-formed unknown id 0123456789abcdef0123456789abcdef01234567, "not-a-valid-id", OWN upper-cased, /customer/repairs/OWN/extra. Requirement: R11. Layer: browser E2E.
@@ -253,7 +253,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 2.10. CUS-10 [P0, browser E2E, OBSERVED] Customer cannot use technician routes (403, no data)
 
-**File:** `e2e/repair/customer-forbidden-technician.spec.ts`
+**File:** `e2e/tests/repairs/customer-forbidden-technician.spec.ts`
 
 **Steps:**
   1. META. Preconditions: signed-in customer with a known own request id OWN. Requirement: R2. Layer: browser E2E.
@@ -267,7 +267,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 2.11. CUS-11 [P1, browser E2E, PLANNED, UNVERIFIED] Expired form key shows the expiry message and saves nothing
 
-**File:** `e2e/repair/customer-expired-form.spec.ts`
+**File:** `e2e/tests/repairs/customer-expired-form.spec.ts`
 
 **Steps:**
   1. META. Preconditions: signed-in customer; N recorded. Requirement: R8 (message from app/customer/new/actions.ts). Status: UNVERIFIED (feasible in browser, not executed). Layer: browser E2E.
@@ -277,7 +277,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 2.12. CUS-12 [P2, browser E2E, OBSERVED] Layout with long unbroken brand/model values (POSSIBLE BUG PB-3)
 
-**File:** `e2e/repair/customer-long-values-layout.spec.ts`
+**File:** `e2e/tests/repairs/customer-long-values-layout.spec.ts`
 
 **Steps:**
   1. META. Preconditions: customer; viewport 1265 x 720 (as observed). Test data: brand 60 x "B", model 80 x "M" (no spaces). Requirement: none documented; expectation UNVERIFIED (no horizontal page scroll). Layer: browser E2E.
@@ -287,7 +287,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 2.13. CUS-13 [P2, browser E2E, UNVERIFIED] Cancel link and empty customer state
 
-**File:** `e2e/repair/customer-cancel-empty.spec.ts`
+**File:** `e2e/tests/repairs/customer-cancel-empty.spec.ts`
 
 **Steps:**
   1. META. Status: Cancel link OBSERVED present (-> /customer), behaviour not clicked; empty state UNVERIFIED (seed always creates one request; needs a customer without records, G4). Requirement: R13 text in app/customer/page.tsx ("No repairs yet", "You haven’t requested a repair..."). Layer: browser E2E (empty state better at Vitest/unit).
@@ -299,11 +299,11 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 ### 3. C. Technician: queue and detail
 
-**Seed:** `e2e/seed.technician.spec.ts`
+**Seed:** `e2e/planner/seeds/seed.technician.spec.ts`
 
 #### 3.1. TECH-01 [P0, browser E2E, OBSERVED] Technician queue lists a queued request with correct fields and link
 
-**File:** `e2e/repair/technician-queue.spec.ts`
+**File:** `e2e/tests/repairs/technician-queue.spec.ts`
 
 **Steps:**
   1. META. Preconditions: signed-in disposable technician; one seeded request with marker M, owner a synthetic id, device Phone, brand "E2E Brand", model "Model <M>". Requirements: R12, R16. Layer: browser E2E. Rule: find the row by marker, never by position/count (shared queue).
@@ -315,7 +315,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 3.2. TECH-02 [P0, browser E2E, OBSERVED] Technician opens a request: read-only details, no owner leakage
 
-**File:** `e2e/repair/technician-detail.spec.ts`
+**File:** `e2e/tests/repairs/technician-detail.spec.ts`
 
 **Steps:**
   1. META. Preconditions: as TECH-01. Requirements: R11 (DTO), R12. Layer: browser E2E.
@@ -331,7 +331,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 3.3. TECH-03 [P0, browser E2E, OBSERVED] Technician is refused customer routes (403) and sees no customer form
 
-**File:** `e2e/repair/technician-forbidden-customer.spec.ts`
+**File:** `e2e/tests/repairs/technician-forbidden-customer.spec.ts`
 
 **Steps:**
   1. META. Preconditions: signed-in technician with the seeded request id SEED. Requirement: R2. Layer: browser E2E.
@@ -343,7 +343,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 3.4. TECH-04 [P1, browser E2E, PARTLY OBSERVED] Technician 404 for unknown or malformed ids
 
-**File:** `e2e/repair/technician-detail-404.spec.ts`
+**File:** `e2e/tests/repairs/technician-detail-404.spec.ts`
 
 **Steps:**
   1. META. Preconditions: signed-in technician. Test data: 0123456789abcdef0123456789abcdef01234567 (well-formed, nonexistent), "not-a-valid-id", SEED upper-cased. Requirement: R11/R12. Layer: browser E2E.
@@ -355,7 +355,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 3.5. TECH-05 [P1, browser E2E, UNVERIFIED] Technician sees requests created through the UI by a customer
 
-**File:** `e2e/repair/technician-sees-customer-request.spec.ts`
+**File:** `e2e/tests/repairs/technician-sees-customer-request.spec.ts`
 
 **Steps:**
   1. META. Status: UNVERIFIED (needs customerPage and technicianPage in one test; seeds are sequential, G6). Requirement: R12 ('every submitted request'). Layer: browser E2E (two contexts via fixtures).
@@ -375,11 +375,11 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 ### 4. D. Cross-actor isolation (customer A vs customer B vs technician)
 
-**Seed:** `e2e/seed.customer.spec.ts (generated tests use fixtures customerPage, otherCustomerPage, technicianPage)`
+**Seed:** `e2e/planner/seeds/seed.customer.spec.ts (generated tests use fixtures customerPage, otherCustomerPage, technicianPage)`
 
 #### 4.1. ISO-01 [P0, browser E2E, UNVERIFIED] Customer B cannot open customer A's request by direct URL
 
-**File:** `e2e/repair/isolation-direct-url.spec.ts`
+**File:** `e2e/tests/repairs/isolation-direct-url.spec.ts`
 
 **Steps:**
   1. META. Status: UNVERIFIED. A second disposable customer is unavailable through the planner seeds (G1); only the nonexistent-id 404 was observed. Requirement: R11. Layer: browser E2E using otherCustomerPage fixture; integration covers store.getForCustomer (tests/integration/store.test.ts).
@@ -390,7 +390,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 4.2. ISO-02 [P0, browser E2E, UNVERIFIED] Customer B's list never contains customer A's requests
 
-**File:** `e2e/repair/isolation-lists.spec.ts`
+**File:** `e2e/tests/repairs/isolation-lists.spec.ts`
 
 **Steps:**
   1. META. Status: UNVERIFIED (G1). Requirement: R10/R11. Layer: browser E2E (two contexts) + integration.
@@ -400,7 +400,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 4.3. ISO-03 [P1, browser E2E, UNVERIFIED] Technician sees both customers' requests and customers cannot see each other's through the queue
 
-**File:** `e2e/repair/isolation-technician-view.spec.ts`
+**File:** `e2e/tests/repairs/isolation-technician-view.spec.ts`
 
 **Steps:**
   1. META. Status: UNVERIFIED (G1, G6). Requirements: R10, R12. Layer: browser E2E (three contexts).
@@ -411,11 +411,11 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 ### 5. E. Database and network failure (browser vs integration)
 
-**Seed:** `e2e/seed.customer.spec.ts for browser scenarios; tests/integration (emulator 8085) for integration scenarios`
+**Seed:** `e2e/planner/seeds/seed.customer.spec.ts for browser scenarios; tests/integration (emulator 8085) for integration scenarios`
 
 #### 5.1. DBF-B1 [P1, browser E2E, OBSERVED] Network failure during submit: no record saved, UI behaviour recorded (PB-2)
 
-**File:** `e2e/repair/failure-network-submit.spec.ts`
+**File:** `e2e/tests/repairs/failure-network-submit.spec.ts`
 
 **Steps:**
   1. META. Layer: browser E2E. Preconditions: signed-in customer on /customer/new with a valid form (Laptop, "PlannerNet", "PLN-R4-net"); list size T recorded. Fault: page-level window.fetch stub that rejects POST with TypeError (OBSERVED); in a generated test prefer page.route(..., route => route.abort('failed')) or context.setOffline(true) (UNVERIFIED, DBF-B2/B3).
@@ -428,7 +428,7 @@ Existing Vitest suites (tests/integration/action.test.ts, store.test.ts, server.
 
 #### 5.2. DBF-B2/B3 [P1, browser E2E, PLANNED, unexplored] HTTP 500 and offline on submit, then successful retry
 
-**File:** `e2e/repair/failure-submit-retry.spec.ts`
+**File:** `e2e/tests/repairs/failure-submit-retry.spec.ts`
 
 **Steps:**
   1. META. Status: PLANNED, not explored: browser_route and browser_network_state_set returned "Tool not found" in this session (G11). Layer: browser E2E. Preconditions: customer on /customer/new with a valid form and note of the requestKey.

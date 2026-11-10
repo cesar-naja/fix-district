@@ -1,5 +1,5 @@
-import { technicianTest as test, expect } from "./fixtures";
-import { LIST_NAME, repairRow } from "./pages/repair-list";
+import { technicianTest as test, expect } from "../../fixtures";
+import { LIST_NAME, repairRow } from "../../pages/repair-list";
 
 // Seed for the Playwright planner/generator agents: the default `page` is
 // already signed in as a disposable technician (a fresh Clerk test user with

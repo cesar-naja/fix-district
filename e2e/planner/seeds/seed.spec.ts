@@ -1,8 +1,8 @@
-import { test, expect } from './fixtures';
+import { test, expect } from '../../fixtures';
 
 // Seed test used by the Playwright planner/generator agents as the starting
 // point for new tests. It only covers public, signed-out pages. Signed-in
-// starting points: seed.customer.spec.ts and seed.technician.spec.ts.
+// starting points: seed.customer.spec.ts and seed.technician.spec.ts (this folder).
 test.describe('Test group', () => {
   test('seed', async ({ page }) => {
     await page.goto('/');

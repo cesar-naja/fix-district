@@ -33,23 +33,23 @@ mcp-servers:
       - playwright
       - run-test-mcp-server
       - --config
-      - e2e/playwright.config.ts
+      - e2e/planner/playwright.config.ts
     tools:
       - "*"
 ---
 
 ## Fix District project rules (read first)
 
-- The browser tests are a private npm workspace in `e2e/`. The Playwright config is `e2e/playwright.config.ts`; the MCP
+- The browser tests are a private npm workspace in `e2e/`. The Playwright config is `e2e/planner/playwright.config.ts`; the MCP
   server is already started with it, so the page you get from `planner_setup_page` is the same app server the tests use
   (Next.js on port 3100, never the developer's own dev server on port 3000).
 - That server talks only to the **Firestore emulator**, which must already be running: `npm run emulators:e2e` in a
   separate terminal. If `planner_setup_page` fails because the emulator or environment is missing, stop and report it.
   Do not work around it, and never point anything at live Firebase.
-- Seeds, from least to most privileged: `e2e/seed.spec.ts` (signed out), `e2e/seed.customer.spec.ts` (disposable signed-in
-  customer), `e2e/seed.technician.spec.ts` (disposable signed-in technician). Pick the seed for the role the scenarios need.
+- Seeds, from least to most privileged: `e2e/planner/seeds/seed.spec.ts` (signed out), `e2e/planner/seeds/seed.customer.spec.ts` (disposable signed-in
+  customer), `e2e/planner/seeds/seed.technician.spec.ts` (disposable signed-in technician). Pick the seed for the role the scenarios need.
   Users and data are disposable and created per test; the framework deletes them afterward.
-- Save plans under `e2e/specs/` (for example `e2e/specs/repair-workflow.md`) and name the seed file in each scenario.
+- Save plans under `e2e/planner/plans/` (for example `e2e/planner/plans/repair-workflow.md`) and name the seed file in each scenario.
 - Do not read, print, or request `.env` files, keys, tokens, cookies, or `storageState`. Do not take actions that would
   change a personal account. Use synthetic data only. Do not edit application code.
 

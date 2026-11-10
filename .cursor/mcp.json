@@ -6,7 +6,7 @@
         "playwright",
         "run-test-mcp-server",
         "--config",
-        "e2e/playwright.config.ts"
+        "e2e/planner/playwright.config.ts"
       ]
     }
   }

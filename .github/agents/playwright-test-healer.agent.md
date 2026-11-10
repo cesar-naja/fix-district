@@ -22,14 +22,14 @@ mcp-servers:
       - playwright
       - run-test-mcp-server
       - --config
-      - e2e/playwright.config.ts
+      - e2e/planner/playwright.config.ts
     tools:
       - "*"
 ---
 
 ## Fix District project rules (read first)
 
-- The browser tests are a private npm workspace in `e2e/`; the Playwright config is `e2e/playwright.config.ts` and the MCP
+- The browser tests are a private npm workspace in `e2e/`; the Playwright config is `e2e/planner/playwright.config.ts` and the MCP
   server is already started with it. `test_run` / `test_debug` need the **Firestore emulator** running
   (`npm run emulators:e2e` in a separate terminal). If it is not, stop and report it; never use live Firebase.
 - Only edit files under `e2e/`. Do not change application code, the safety guards (`e2e/support/safety.ts`), the

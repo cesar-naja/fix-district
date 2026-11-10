@@ -31,21 +31,21 @@ mcp-servers:
       - playwright
       - run-test-mcp-server
       - --config
-      - e2e/playwright.config.ts
+      - e2e/planner/playwright.config.ts
     tools:
       - "*"
 ---
 
 ## Fix District project rules (read first)
 
-- The browser tests are a private npm workspace in `e2e/`. The Playwright config is `e2e/playwright.config.ts`; the MCP
+- The browser tests are a private npm workspace in `e2e/`. The Playwright config is `e2e/planner/playwright.config.ts`; the MCP
   server is already started with it. The app server it drives (port 3100) uses only the **Firestore emulator**, which must
   be running: `npm run emulators:e2e` in a separate terminal. If it is not, stop and report it; never use live Firebase.
-- Write tests inside `e2e/` (for example `e2e/repair/<scenario>.spec.ts`), never in the repository's `tests/` directory,
+- Write tests inside `e2e/` (for example `e2e/tests/repairs/<scenario>.spec.ts`), never in the repository's `tests/` directory,
   which holds the unrelated Vitest suite.
 - Build on the existing fixtures (`e2e/fixtures`), page objects (`e2e/pages`), and data helpers (`e2e/support/data.ts`).
   Import `test` / `customerTest` / `technicianTest` and `expect` from `e2e/fixtures`, not from `@playwright/test`. Use the
-  seed named in the plan; seeds are `e2e/seed.spec.ts`, `e2e/seed.customer.spec.ts`, `e2e/seed.technician.spec.ts`.
+  seed named in the plan; seeds are `e2e/planner/seeds/seed.spec.ts`, `e2e/planner/seeds/seed.customer.spec.ts`, `e2e/planner/seeds/seed.technician.spec.ts`.
 - Each test must be independent: unique marker per test, no fixed IDs, no fixed sleeps, no shared mutable state, and it
   must pass when run alone, in any order, and in parallel. Keep expected business outcomes as literals in the test; do not
   import application internals.
@@ -74,9 +74,9 @@ application behavior.
    <example-generation>
    For following plan:
 
-   ```markdown file=e2e/specs/plan.md
+   ```markdown file=e2e/planner/plans/plan.md
    ### 1. Adding New Todos
-   **Seed:** `e2e/seed.spec.ts`
+   **Seed:** `e2e/planner/seeds/seed.spec.ts`
 
    #### 1.1 Add Valid Todo
    **Steps:**
@@ -88,9 +88,9 @@ application behavior.
 
    Following file is generated:
 
-   ```ts file=e2e/todos/add-valid-todo.spec.ts
-   // spec: e2e/specs/plan.md
-   // seed: e2e/seed.spec.ts
+   ```ts file=e2e/tests/repairs/add-valid-todo.spec.ts
+   // spec: e2e/planner/plans/plan.md
+   // seed: e2e/planner/seeds/seed.spec.ts
 
    test.describe('Adding New Todos', () => {
      test('Add Valid Todo', async ({ page }) => {

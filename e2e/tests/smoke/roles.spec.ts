@@ -1,7 +1,7 @@
-import { expect, test } from "../fixtures";
-import { LIST_NAME, repairRow } from "../pages/repair-list";
-import { RepairFormPage } from "../pages/repair-form.page";
-import { repairInput } from "../support/data";
+import { expect, test } from "../../fixtures";
+import { LIST_NAME, repairRow } from "../../pages/repair-list";
+import { RepairFormPage } from "../../pages/repair-form.page";
+import { repairInput } from "../../support/data";
 
 /**
  * Minimal checks that each disposable role works end to end: real Clerk

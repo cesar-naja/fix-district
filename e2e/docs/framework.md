@@ -12,7 +12,7 @@ Browser tests live in `e2e/`, a **private npm workspace** (`@fix-district/e2e`) 
 | `next dev` locally on 3100, production build in CI | `E2E_SERVER_MODE=dev` (default) or `build` (default when `CI` is set). |
 | Separate build directory and lock | **Verified**, see section 5. |
 | Chromium only, one worker | `projects: setup, chromium`. `workers` defaults to 1 (`E2E_WORKERS`, max 4). |
-| Authenticated planner seeds | `e2e/seed.customer.spec.ts`, `e2e/seed.technician.spec.ts` (disposable user plus emulator data). |
+| Authenticated planner seeds | `e2e/planner/seeds/seed.customer.spec.ts`, `e2e/planner/seeds/seed.technician.spec.ts` (disposable user plus emulator data). |
 | Remote-readonly target | Deferred. Not built. Remote base URLs are refused. |
 | Existing `e2e/` directory | Kept, and now a private npm workspace. |
 
@@ -27,14 +27,15 @@ e2e/                            private npm workspace "@fix-district/e2e"
   README.md                     how to run, configure, and extend
   .env.example                  placeholders only (copy to .env.local, git-ignored)
   docs/framework.md             this document
-  specs/                        planner output (reviewed plans)
+  planner/playwright.config.ts  MCP config: reuses playwright.config.ts, discovers only planner/seeds
+  planner/plans/                planner output (reviewed plans)
   unit/safety.test.ts           Vitest tests for support/safety.ts (17)
-  seed.spec.ts                  signed-out planner seed (kept, now uses fixtures)
-  seed.customer.spec.ts         planner seed: disposable customer + one emulator request
-  seed.technician.spec.ts       planner seed: disposable technician + one queued request
+  planner/seeds/seed.spec.ts    signed-out planner seed (kept, now uses fixtures)
+  planner/seeds/seed.customer.spec.ts   planner seed: disposable customer + one emulator request
+  planner/seeds/seed.technician.spec.ts planner seed: disposable technician + one queued request
   setup/global-setup.ts         once per runner session: emulator identity + cleanliness
-  smoke/public.spec.ts          signed-out smoke (4 tests)
-  smoke/roles.spec.ts           per-role smoke (5 tests)
+  tests/smoke/public.spec.ts         signed-out smoke (4 tests)
+  tests/smoke/roles.spec.ts            per-role smoke (5 tests)
   config/env.ts                 load + validate E2E env, refuse unsafe values
   support/safety.ts             pure guards (unit-tested in unit/safety.test.ts)
   support/clerk-admin.ts        create/delete tagged disposable Clerk users
@@ -42,6 +43,7 @@ e2e/                            private npm workspace "@fix-district/e2e"
   support/data.ts               unique marker, synthetic data (literals)
   fixtures/index.ts             test/expect, worker + test fixtures, role variants
   pages/repair-form.page.ts     /customer/new interactions
+  tests/repairs/                repair tests (B1-01 so far)
   pages/repair-list.ts          row lookup by marker
 firebase.e2e.json               (repository root) emulator: 8086 (hub 4401, logging 4501, websocket 9151)
 ```
@@ -160,7 +162,7 @@ Commands (from the repository root):
 npx playwright test            # or: npm run test:e2e
 
 # One file, one test, or UI mode (any selection works on its own):
-npx playwright test repair/customer-submit-persist.spec.ts
+npx playwright test tests/repairs/customer-submit-persist.spec.ts
 npx playwright test -g "lands on the customer dashboard"
 npx playwright test --ui
 

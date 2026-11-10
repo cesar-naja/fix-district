@@ -1,4 +1,4 @@
-import { expect, test } from "../fixtures";
+import { expect, test } from "../../fixtures";
 
 test.describe("signed out", () => {
   test("the home page shows the primary navigation", async ({ page }) => {
