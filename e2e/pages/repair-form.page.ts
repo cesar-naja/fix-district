@@ -21,6 +21,18 @@ export class RepairFormPage {
     await this.page.getByRole("button", { name: "Submit request" }).click();
   }
 
+  get brand(): Locator {
+    return this.page.getByLabel("Brand");
+  }
+
+  get model(): Locator {
+    return this.page.getByLabel("Model");
+  }
+
+  get description(): Locator {
+    return this.page.getByLabel(/what.s wrong/i);
+  }
+
   /** The confirmation shown after a saved request. */
   get successNotice(): Locator {
     return this.page.getByRole("status").filter({ hasText: "Request submitted" });
