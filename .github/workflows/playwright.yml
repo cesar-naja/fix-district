@@ -42,7 +42,12 @@ jobs:
     # Root script -> e2e workspace: starts the Firestore emulator (demo project,
     # port 8086), then runs Playwright, which builds and starts the app against it.
     - name: Run Playwright tests
-      run: npm run test:e2e
+      id: playwright
+      run: npm run test -w @fix-district/e2e -- --reporter=list,html,json
+      env:
+        PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report
+        PLAYWRIGHT_HTML_OPEN: never
+        PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/fix-district-playwright.json
     # Reports can contain screenshots and request details. Keep them short-lived.
     # Traces are off in CI unless E2E_TRACE is set.
     - uses: actions/upload-artifact@v4
@@ -51,3 +56,13 @@ jobs:
         name: playwright-report
         path: e2e/playwright-report/
         retention-days: 3
+    - name: Publish Playwright results to Confluence
+      if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && github.ref_name == github.event.repository.default_branch && vars.CONFLUENCE_PAGE_ID != '' }}
+      run: node e2e/scripts/publish-confluence.mjs
+      env:
+        CONFLUENCE_API_BASE: ${{ vars.CONFLUENCE_API_BASE }}
+        CONFLUENCE_PAGE_ID: ${{ vars.CONFLUENCE_PAGE_ID }}
+        CONFLUENCE_EMAIL: ${{ secrets.CONFLUENCE_EMAIL }}
+        CONFLUENCE_API_TOKEN: ${{ secrets.CONFLUENCE_API_TOKEN }}
+        PLAYWRIGHT_JSON_PATH: ${{ runner.temp }}/fix-district-playwright.json
+        TEST_JOB_RESULT: ${{ steps.playwright.outcome }}
