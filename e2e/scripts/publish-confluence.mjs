@@ -60,7 +60,7 @@ export function rotate(runs, incoming, now = new Date()) {
 
 export function overview(repoUrl) {
   return `<p>${link(repoUrl, 'Browse Fix District on GitHub')} · ${link(`${repoUrl}/actions/workflows/playwright.yml`, 'Open GitHub Actions')} · ${link(`${repoUrl}/blob/main/e2e/README.md`, 'Read the E2E setup guide')}</p>
-<p>Manual runs on the default branch publish here. The table shows the current Chicago calendar day and the previous four days. Each publication removes older rows from the displayed table.</p>`;
+<p>Scheduled weekday runs at 9:15 a.m. Chicago time and manual runs on the default branch publish here. The table shows the current Chicago calendar day and the previous four days. Each publication removes older rows from the displayed table.</p>`;
 }
 
 export function render(runs, now = new Date()) {
