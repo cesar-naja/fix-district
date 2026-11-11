@@ -67,15 +67,18 @@ export function render(runs, now = new Date()) {
   const latest = runs[0];
   const stamp = new Intl.DateTimeFormat('en-US', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' });
   const cell = value => `<td><p>${xml(value)}</p></td>`;
-  const rows = runs.map(run => `<tr>${cell(stamp.format(new Date(run.timestamp)))}${cell(run.status)}${cell(run.passed)}${cell(run.failed)}${cell(run.flaky)}${cell(run.skipped)}${cell(run.reportAvailable ? `${run.duration}s` : 'Unavailable')}${cell(run.browsers.join(', ') || 'Unavailable')}<td><p>${link(run.url, `#${run.number} · ${run.sha.slice(0, 7)}`)}</p></td></tr>`).join('');
+  const rows = runs.map(run => `<tr>${cell(stamp.format(new Date(run.timestamp)))}${cell(run.status)}${cell(`${run.passed} passed · ${run.flaky} flaky · ${run.failed} failed · ${run.skipped} skipped`)}${cell(run.reportAvailable ? `${run.duration}s` : 'Unavailable')}<td><p>${link(run.url, `#${run.number}`)}</p></td></tr>`).join('');
   const banner = latest
-    ? `<p><strong>Latest run: ${xml(latest.status)}</strong> · ${xml(stamp.format(new Date(latest.timestamp)))} (Chicago)</p>${latest.infrastructure ? '<p>Execution/setup issue or missing report. Open the workflow run for details; zero counts do not mean the suite passed.</p>' : ''}`
+    ? `<h3>Latest run</h3><p><strong>${xml(latest.status)}</strong> · ${xml(stamp.format(new Date(latest.timestamp)))} (Chicago) · ${link(latest.url, `Open run #${latest.number}`)}</p>
+${latest.reportAvailable ? `<p><strong>${xml(latest.passed)}</strong> passed · <strong>${xml(latest.flaky)}</strong> passed on retry · <strong>${xml(latest.failed)}</strong> failed · <strong>${xml(latest.skipped)}</strong> skipped · ${xml(latest.duration)}s</p>` : '<p>Playwright did not produce a report for this run.</p>'}
+${latest.infrastructure ? '<p>Open the workflow log to investigate a setup or execution issue.</p>' : ''}`
     : '<p>No published runs in the current five-day window.</p>';
-  const headers = ['Run started (Chicago)', 'Result', 'Passed', 'Failed', 'Flaky', 'Skipped', 'Duration', 'Browsers', 'Workflow run'];
+  const headers = ['Started (CT)', 'Status', 'Test outcomes', 'Time', 'Run'];
   return `<h2>Playwright automated results</h2>${banner}
-<p>Five calendar days, including today. Last refreshed: ${xml(stamp.format(now))} (Chicago). A flaky test passed after a retry. A passed test may include an intentional expected failure.</p>
+<h3>Run history</h3>
+<p>Latest five Chicago calendar days. Refreshed ${xml(stamp.format(now))} (CT).</p>
 <table><tbody><tr>${headers.map(h => `<th><p>${xml(h)}</p></th>`).join('')}</tr>${rows}</tbody></table>
-<p>Open a run above for the individual test results. Failed jobs may also provide an HTML report under Artifacts.</p>
+<p>Flaky tests passed on retry. Open a run for individual results. Failed jobs may also include an HTML report under Artifacts.</p>
 <ac:structured-macro ac:name="expand"><ac:parameter ac:name="title">Publisher data — managed automatically</ac:parameter><ac:rich-text-body><ac:structured-macro ac:name="code"><ac:parameter ac:name="language">json</ac:parameter><ac:plain-text-body><![CDATA[${JSON.stringify({ schema: 1, runs }).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')}]]></ac:plain-text-body></ac:structured-macro></ac:rich-text-body></ac:structured-macro>
 <p>End of Playwright automated results.</p>`;
 }
