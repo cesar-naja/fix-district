@@ -20,7 +20,7 @@ function fact(page: Page, label: string): Locator {
     .locator("xpath=following-sibling::dd");
 }
 
-test.describe("Customer request isolation", () => {
+test.describe("Customer request isolation", { tag: "@repair" }, () => {
   test("Customer B cannot list or open Customer A's request, while A can still open it", async ({
     customerPage: pageA,
     otherCustomerPage: pageB,

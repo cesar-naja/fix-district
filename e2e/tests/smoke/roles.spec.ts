@@ -10,15 +10,15 @@ import { repairInput } from "../../support/data";
  * repair-feature suite.
  */
 
-test.describe("customer", () => {
-  test("lands on the customer dashboard with an empty list", async ({ customerPage }) => {
+test.describe("customer", { tag: "@smoke" }, () => {
+  test("lands on the customer dashboard with an empty list", { tag: "@auth" }, async ({ customerPage }) => {
     await customerPage.goto("/dashboard");
     await expect(customerPage).toHaveURL(/\/customer$/);
     await expect(customerPage.getByRole("heading", { name: "Welcome, E2E" })).toBeVisible();
     await expect(customerPage.getByText("No repairs yet")).toBeVisible();
   });
 
-  test("gets access denied on the technician page", async ({ customerPage }) => {
+  test("gets access denied on the technician page", { tag: "@auth" }, async ({ customerPage }) => {
     await customerPage.goto("/technician");
     await expect(customerPage.getByRole("heading", { name: "Access denied" })).toBeVisible();
   });
@@ -45,8 +45,8 @@ test.describe("customer", () => {
   });
 });
 
-test.describe("technician", () => {
-  test("lands on the technician dashboard and sees a seeded request", async ({
+test.describe("technician", { tag: "@smoke" }, () => {
+  test("lands on the technician dashboard and sees a seeded request", { tag: "@auth" }, async ({
     technicianPage,
     seed,
     marker,
@@ -59,7 +59,7 @@ test.describe("technician", () => {
     await expect(repairRow(technicianPage, LIST_NAME.technician, marker)).toBeVisible();
   });
 
-  test("gets access denied on the customer page", async ({ technicianPage }) => {
+  test("gets access denied on the customer page", { tag: "@auth" }, async ({ technicianPage }) => {
     await technicianPage.goto("/customer");
     await expect(technicianPage.getByRole("heading", { name: "Access denied" })).toBeVisible();
   });

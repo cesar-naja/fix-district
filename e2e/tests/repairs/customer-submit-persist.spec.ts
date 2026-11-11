@@ -20,7 +20,7 @@ function fact(page: Page, label: string): Locator {
     .locator("xpath=following-sibling::dd");
 }
 
-test.describe("Customer repair submission and persistence", () => {
+test.describe("Customer repair submission and persistence", { tag: "@repair" }, () => {
   test("Submit a valid repair, open its details, reload, verify the saved values persist", async ({
     customerPage: page,
     customer,

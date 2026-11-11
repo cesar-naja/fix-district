@@ -10,7 +10,7 @@ import { test, expect } from "../../fixtures";
 import { RepairFormPage } from "../../pages/repair-form.page";
 import { LIST_NAME, repairRow } from "../../pages/repair-list";
 
-test.describe("Customer repair form validation", () => {
+test.describe("Customer repair form validation", { tag: "@repair" }, () => {
   test("Submit an empty form, verify validation errors, and verify no record was saved", async ({
     customerPage: page,
     customer,
