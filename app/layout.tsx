@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { clerkAppearance, clerkLocalization } from "@/lib/clerk-appearance";
 import { SITE } from "@/lib/site";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -66,6 +67,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </main>
           <SiteFooter />
         </ClerkProvider>
+        <Analytics />
       </body>
     </html>
   );
