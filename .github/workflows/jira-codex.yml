@@ -1,0 +1,179 @@
+name: Jira story to draft PR
+run-name: 'Codex: ${{ inputs.issue_key }}'
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_key:
+        description: Jira issue key
+        required: true
+        default: FD-1
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  implement:
+    # Only trusted workflow code on the default branch may receive secrets.
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      changed: ${{ steps.patch.outputs.changed }}
+      branch: ${{ steps.story.outputs.branch }}
+      base_sha: ${{ steps.story.outputs.base_sha }}
+      codex: ${{ steps.codex.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Read Jira story and prepare feature branch
+        id: story
+        run: |
+          mkdir -p "$RUNNER_TEMP/proposal"
+          node .github/scripts/jira-codex.mjs prepare
+        env:
+          ISSUE_KEY: ${{ inputs.issue_key }}
+          JIRA_BASE_URL: ${{ vars.JIRA_BASE_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_ACCEPTANCE_CRITERIA_FIELD: ${{ vars.JIRA_ACCEPTANCE_CRITERIA_FIELD }}
+      - name: Create feature branch
+        run: git switch -C "$FEATURE_BRANCH"
+        env:
+          FEATURE_BRANCH: ${{ steps.story.outputs.branch }}
+      - run: npm ci
+      - name: Implement story with Codex
+        id: codex
+        continue-on-error: true
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: ${{ runner.temp }}/codex-prompt.md
+          output-file: ${{ runner.temp }}/proposal/codex.md
+          sandbox: workspace-write
+          safety-strategy: drop-sudo
+      - name: Capture proposed changes
+        id: patch
+        run: |
+          git add --all
+          if git diff --cached --name-only HEAD | grep -E '(^\.github/|(^|/)(AGENTS\.md|\.env[^/]*|\.gitmodules)$)'; then
+            echo 'Generated changes to automation, instructions, or credentials require a separate human change.' >&2
+            exit 1
+          fi
+          git diff --cached --binary HEAD > "$RUNNER_TEMP/proposal/changes.patch"
+          if test -s "$RUNNER_TEMP/proposal/changes.patch"; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'Codex produced no changes; no draft PR will be opened.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codex-proposal
+          path: ${{ runner.temp }}/proposal/
+          retention-days: 3
+      - name: Preserve Codex failure status
+        if: steps.codex.outcome != 'success'
+        run: exit 1
+
+  playwright:
+    needs: implement
+    if: ${{ !cancelled() && needs.implement.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      outcome: ${{ steps.tests.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.implement.outputs.base_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: codex-proposal
+          path: ${{ runner.temp }}/proposal
+      - name: Apply proposed changes
+        run: |
+          git apply --index "$RUNNER_TEMP/proposal/changes.patch"
+          mkdir -p "$RUNNER_TEMP/results"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm exec -w @fix-district/e2e -- playwright install --with-deps chromium
+      - name: Run existing Playwright suite
+        id: tests
+        run: npm run test -w @fix-district/e2e -- --reporter=list,html,json
+        env:
+          E2E_SERVER_MODE: build
+          E2E_TRACE: 'off'
+          E2E_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
+          E2E_CLERK_SECRET_KEY: ${{ secrets.E2E_CLERK_SECRET_KEY }}
+          E2E_CLERK_FRONTEND_API: ${{ secrets.E2E_CLERK_FRONTEND_API }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: ${{ runner.temp }}/results/html
+          PLAYWRIGHT_HTML_OPEN: never
+          PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/results/playwright-results.json
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: jira-playwright-results
+          path: ${{ runner.temp }}/results/
+          if-no-files-found: warn
+          retention-days: 3
+
+  draft-pr:
+    needs: [implement, playwright]
+    if: ${{ !cancelled() && needs.implement.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.implement.outputs.base_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - uses: actions/download-artifact@v4
+        with:
+          name: codex-proposal
+          path: ${{ runner.temp }}/proposal
+      - name: Download available Playwright results
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: jira-playwright-results
+          path: ${{ runner.temp }}/results
+      - name: Write PR body from results
+        run: node .github/scripts/jira-codex.mjs report
+        env:
+          CODEX_OUTCOME: ${{ needs.implement.outputs.codex }}
+          PLAYWRIGHT_JOB: ${{ needs.playwright.result }}
+          PLAYWRIGHT_OUTCOME: ${{ needs.playwright.outputs.outcome }}
+      # This job never executes generated code or installs its dependencies.
+      - name: Push feature branch and open draft PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FEATURE_BRANCH: ${{ needs.implement.outputs.branch }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          ISSUE_KEY: ${{ inputs.issue_key }}
+        run: |
+          git switch -c "$FEATURE_BRANCH"
+          git apply --index "$RUNNER_TEMP/proposal/changes.patch"
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' -c core.hooksPath=/dev/null commit -m "$ISSUE_KEY: Codex implementation"
+          gh auth setup-git
+          git push origin "HEAD:refs/heads/$FEATURE_BRANCH"
+          gh pr create --draft --base "$BASE_BRANCH" --head "$FEATURE_BRANCH" --title "$ISSUE_KEY: Codex implementation" --body-file "$RUNNER_TEMP/pr-body.md" >> "$GITHUB_STEP_SUMMARY"
