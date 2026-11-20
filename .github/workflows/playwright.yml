@@ -32,11 +32,13 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: lts/*
-    # The Firestore emulator needs Java 21+.
-    - uses: actions/setup-java@v4
+    # Patched Temurin build for CVE-2026-114938 (Java4Shell).
+    - uses: actions/setup-java@v6
       with:
         distribution: temurin
-        java-version: '21'
+        java-version: '21.0.13.1+2'
+    - name: Show Java runtime version
+      run: java -version
     # One root package-lock.json covers the app and the e2e workspace.
     - name: Install dependencies
       run: npm ci
