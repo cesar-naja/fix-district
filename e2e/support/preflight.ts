@@ -1,4 +1,4 @@
-import type { E2EConfig } from "../config/env";
+import type { E2EConfig } from "./env";
 import { E2ESafetyError } from "./safety";
 
 /**

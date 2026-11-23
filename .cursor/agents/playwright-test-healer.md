@@ -12,7 +12,7 @@ model: inherit
   server is already started with it. `test_run` / `test_debug` need the **Firestore emulator** running
   (`npm run emulators:e2e` in a separate terminal). If it is not, stop and report it; never use live Firebase.
 - Only edit files under `e2e/`. Do not change application code, the safety guards (`e2e/support/safety.ts`), the
-  environment validation (`e2e/config/env.ts`), or cleanup logic to make a test pass. If a failure looks like a real
+  environment validation (`e2e/support/env.ts`), or cleanup logic to make a test pass. If a failure looks like a real
   application bug, report it instead of weakening the test.
 - Do not use `test.fixme` / `test.skip` without telling the user why. Do not add fixed sleeps.
 - Do not read, print, or request `.env` files, keys, tokens, cookies, or `storageState`. Traces and screenshots may

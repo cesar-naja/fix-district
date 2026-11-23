@@ -6,7 +6,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { clerk, clerkSetup, setupClerkTestingToken } from "@clerk/testing/playwright";
-import { loadE2EEnv, type E2EConfig } from "../config/env";
+import { loadE2EEnv, type E2EConfig } from "../support/env";
 import { createClerkTestUsers, type TestRole, type TestUser } from "../support/clerk-admin";
 import { uniqueMarker, type RepairFormInput } from "../support/data";
 import { createEmulatorData, type EmulatorData } from "../support/emulator";
@@ -21,7 +21,7 @@ import { LIST_NAME, repairRow } from "../pages/repair-list";
  * Prerequisites, and where each one lives:
  *  - once per runner session (CLI run, UI session, agent run): the emulator is
  *    started or reused, validated as the intended E2E emulator and checked for
- *    leftovers (playwright.config.ts webServer + setup/global-setup.ts);
+ *    leftovers (playwright.config.ts webServer + support/global-setup.ts);
  *  - once per worker, for every test (auto fixture `environment`): the
  *    configuration is valid and the emulator still answers as the E2E one;
  *  - once per worker, before a test first touches data (`emulator`, `customer`,

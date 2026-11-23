@@ -39,7 +39,7 @@ shared fixtures, not a project you select:
 | --- | --- | --- |
 | Emulator | once per runner session (`webServer` in `playwright.config.ts`) | Reuses a Firestore emulator already answering on the E2E port, otherwise starts the one defined by `../firebase.e2e.json`. Playwright stops only a process it started (and its child processes) at the end of the session. An emulator you started is never stopped. |
 | App test server | once per runner session | `next dev` (or build + start in CI) on port 3100 with an explicit emulator-only environment. |
-| Emulator identity and cleanliness | once per runner session (`setup/global-setup.ts`) | The emulator hub (`E2E_EMULATOR_HUB`) must confirm that Firestore is on the configured port, so a stray process on the port is refused, not used. The emulator must hold at most 10 leftover requests. Nothing is ever wiped. |
+| Emulator identity and cleanliness | once per runner session (`support/global-setup.ts`) | The emulator hub (`E2E_EMULATOR_HUB`) must confirm that Firestore is on the configured port, so a stray process on the port is refused, not used. The emulator must hold at most 10 leftover requests. Nothing is ever wiped. |
 | Environment | once per worker, every test (auto fixture `environment`) | Configuration is valid and the emulator still answers as the E2E emulator. Cheap, read-only. |
 | App reads the emulator | once per worker, before a test first uses `emulator`, `seed`, `customer`, `otherCustomer` or `technician` | A record written only to the emulator must appear in the app's own customer list. It is owned by the worker's disposable customer and removed at once. |
 | Sessions | on demand | Customers get customer sessions, technicians technician sessions, signed-out tests get none. A signed-out test creates no Clerk user and no record. |
@@ -71,14 +71,15 @@ The emulator is started automatically only for the default host and hub. If you 
 | Path | Purpose |
 | --- | --- |
 | `playwright.config.ts` | the `chromium` project (no setup project), `webServer` entries for the emulator and the app server, `globalSetup`, explicit app-server environment, artifact policy |
-| `config/env.ts` | loads and validates `e2e/.env.local` plus shell, refuses unsafe values |
+| `support/env.ts` | loads and validates `e2e/.env.local` plus shell, refuses unsafe values |
 | `support/` | `safety.ts` guards, `preflight.ts` (emulator identity and leftover checks), `clerk-admin.ts`, `emulator.ts`, `data.ts` |
 | `fixtures/index.ts` | `test` / `customerTest` / `technicianTest` / `expect`, including the automatic prerequisites |
 | `pages/` | page objects (locators and reusable actions only) |
-| `setup/global-setup.ts` | once per runner session: emulator identity and cleanliness |
+| `support/global-setup.ts` | once per runner session: emulator identity and cleanliness |
 | `tests/smoke/`, `tests/repairs/` | the regular browser suite (the only specs `npx playwright test` discovers) |
-| `planner/` | `playwright.config.ts` (MCP config, seeds only), `seeds/` (planner seeds), `plans/` (Markdown plans; review before generating tests) |
-| `unit/` | Vitest tests for the guards (`vitest.config.mts`) |
+| `planner/` | `playwright.config.ts` (MCP config, seeds only), `seeds/` (planner seeds) |
+| `tests/unit/` | Vitest tests for the guards (`vitest.config.mts`) |
+| `docs/plans/` | Markdown test plans for review before generating tests |
 | `../firebase.e2e.json` | emulator config (port 8086), at the root because the Firebase CLI can only reference rules inside the config's folder |
 
 Generated output (`test-results/`, `playwright-report/`) lands here and is git-ignored. **Treat it as private:** traces,
@@ -122,7 +123,7 @@ npx playwright test --list --config e2e/planner/playwright.config.ts
 
 Invoke the planner agent in Cursor with a prompt such as: "Use the playwright-test-planner agent with seed
 `e2e/planner/seeds/seed.customer.spec.ts` to plan <area>". Seeds: `seed.spec.ts` (signed out), `seed.customer.spec.ts`,
-`seed.technician.spec.ts`. Plans are saved to `planner/plans/`. Generated tests go to `tests/repairs/` or
+`seed.technician.spec.ts`. Plans are saved to `docs/plans/`. Generated tests go to `tests/repairs/` or
 `tests/smoke/`, with a `// spec:` header pointing at the plan and a `// seed:` line.
 
 The emulator and app server start automatically, as for any runner. A paused seed session holds port 3100 until the

@@ -1,4 +1,4 @@
-// spec: e2e/planner/plans/repair-workflow-approved-batch-1.md
+// spec: e2e/docs/plans/repair-workflow-approved-batch-1.md
 // scenario: B1-04 (source: TECH-05, plus the detail checks from TECH-02)
 // requirements: R9, R11, R12, R16
 //
