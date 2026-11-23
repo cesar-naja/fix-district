@@ -1,6 +1,6 @@
 ---
 name: playwright-test-generator
-description: Turn one scenario from an approved plan in e2e/planner/plans/ into a Playwright test under e2e/, executing each step live through the Playwright test MCP server. Use only when asked to generate a specific test.
+description: Turn one scenario from an approved plan in e2e/docs/plans/ into a Playwright test under e2e/, executing each step live through the Playwright test MCP server. Use only when asked to generate a specific test.
 model: inherit
 ---
 
@@ -44,7 +44,7 @@ application behavior.
    <example-generation>
    For following plan:
 
-   ```markdown file=e2e/planner/plans/plan.md
+   ```markdown file=e2e/docs/plans/plan.md
    ### 1. Adding New Todos
    **Seed:** `e2e/planner/seeds/seed.spec.ts`
 
@@ -59,7 +59,7 @@ application behavior.
    Following file is generated:
 
    ```ts file=e2e/tests/repairs/add-valid-todo.spec.ts
-   // spec: e2e/planner/plans/plan.md
+   // spec: e2e/docs/plans/plan.md
    // seed: e2e/planner/seeds/seed.spec.ts
 
    test.describe('Adding New Todos', () => {

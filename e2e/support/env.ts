@@ -7,7 +7,7 @@ import {
   assertDedicatedClerkApp,
   assertEmulatorOnly,
   assertLocalBaseUrl,
-} from "../support/safety";
+} from "./safety";
 
 /**
  * The single place browser-test configuration is read and validated.
@@ -74,7 +74,7 @@ export const DEFAULT_EMULATOR_HUB: string = DEFAULTS.emulatorHub;
 
 let cached: E2EConfig | undefined;
 
-/** The e2e workspace directory (this file is e2e/config/env.ts). */
+/** The e2e workspace directory (this file is e2e/support/env.ts). */
 export const E2E_DIR = path.resolve(__dirname, "..");
 /** The repository root, where the application and its own .env.local live. */
 export const REPO_ROOT = path.resolve(E2E_DIR, "..");

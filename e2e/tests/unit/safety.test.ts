@@ -9,7 +9,7 @@ import {
   frameworkUserTag,
   isTaggedForRun,
   publishableKeyHost,
-} from "../support/safety";
+} from "../../support/safety";
 
 const keyFor = (host: string, kind: "test" | "live" = "test") =>
   `pk_${kind}_${Buffer.from(`${host}$`).toString("base64")}`;

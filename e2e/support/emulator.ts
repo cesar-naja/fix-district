@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { getApps, initializeApp } from "firebase-admin/app";
 import { Timestamp, getFirestore } from "firebase-admin/firestore";
-import { SEEDED_REQUESTS_PER_WORKER, type E2EConfig } from "../config/env";
+import { SEEDED_REQUESTS_PER_WORKER, type E2EConfig } from "./env";
 import { DEVICE_VALUE, repairInput, type RepairFormInput } from "./data";
 import { E2ESafetyError, assertEmulatorOnly } from "./safety";
 
