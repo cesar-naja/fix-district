@@ -6,7 +6,7 @@
 
 Scope: the implemented repair workflow of Fix District (Next.js 16.4.3, Clerk auth, Firestore via Firebase Admin on the E2E emulator). Customers submit a repair request at /customer/new, see their own requests at /customer and /customer/repairs/[id]; technicians see every request at /technician and /technician/repairs/[id] (read-only). Status is always "Submitted" in this milestone.
 
-This plan is INDEPENDENT. It was produced from live exploration through the playwright-test MCP server plus the repository docs/code listed in section 3. It does not use e2e/planner/plans/repair-workflow.md. PLAN ONLY: no tests were generated and no application code was changed.
+This plan is INDEPENDENT. It was produced from live exploration through the playwright-test MCP server plus the repository docs/code listed in section 3. It does not use e2e/docs/plans/repair-workflow.md. PLAN ONLY: no tests were generated and no application code was changed.
 
 Every statement is labelled:
 - OBSERVED = actually seen in the browser during this exploration (seed session named).
@@ -24,7 +24,7 @@ Priorities: P0 = security/data-integrity/core flow, P1 = important validation/UX
 - Tooling limits OBSERVED: browser_route, browser_network_state_set and browser_reload were listed by tool discovery but returned "Tool not found" when called. Network faults were therefore simulated only by an in-page window.fetch stub (page JavaScript, not a network-level fault). browser_run_code_unsafe exists but was deliberately NOT used (RCE-equivalent).
 - Facts for test authors (OBSERVED): (a) the device-type radios are visually hidden (class sr-only); getByRole('radio').check()/fill timed out after 15 s because the wrapping <label> intercepts pointer events; click the label text (getByText('Phone', {exact:true})) instead. (b) Success and error headings are upper-cased by CSS, so innerText is upper case while the accessible/DOM text is mixed case; assert on role/name or textContent, not innerText. (c) /dashboard redirect for a signed-in user happens client-side after streaming (navigation redirectCount 0), so assert with an auto-retrying toHaveURL, not an immediate URL check. (d) Document navigations for 403/404 pages return HTTP 200 (see POSSIBLE BUG PB-1). (e) A well-formed test ID is 40 lowercase hex characters.
 
-# 3. Requirements traceability (sources; none from e2e/planner/plans/repair-workflow.md)
+# 3. Requirements traceability (sources; none from e2e/docs/plans/repair-workflow.md)
 
 | Req | Requirement | Source |
 | --- | --- | --- |

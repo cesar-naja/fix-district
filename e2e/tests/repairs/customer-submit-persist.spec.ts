@@ -1,6 +1,6 @@
-// spec: e2e/planner/plans/repair-workflow-approved-batch-1.md
+// spec: e2e/docs/plans/repair-workflow-approved-batch-1.md
 // scenario: B1-01 (source: CUS-01 steps 3 to 5, plus the reload step from CUS-05;
-//   see e2e/planner/plans/repair-workflow-planner.md)
+//   see e2e/docs/plans/repair-workflow-planner.md)
 // requirements: R4, R7, R9, R11
 // seed (exploration only, not a dependency): e2e/planner/seeds/seed.customer.spec.ts
 //

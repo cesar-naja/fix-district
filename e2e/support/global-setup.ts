@@ -1,6 +1,6 @@
-import { loadE2EEnv } from "../config/env";
-import { createEmulatorData } from "../support/emulator";
-import { assertNoLeftoverRequests, verifyEmulator } from "../support/preflight";
+import { loadE2EEnv } from "./env";
+import { createEmulatorData } from "./emulator";
+import { assertNoLeftoverRequests, verifyEmulator } from "./preflight";
 
 /**
  * Runs once per runner session: `playwright test`, a UI-mode session, and every

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { assertHubDescribesFirestore, assertNoLeftoverRequests, MAX_LEFTOVER_REQUESTS } from "../support/preflight";
-import { E2ESafetyError } from "../support/safety";
+import { assertHubDescribesFirestore, assertNoLeftoverRequests, MAX_LEFTOVER_REQUESTS } from "../../support/preflight";
+import { E2ESafetyError } from "../../support/safety";
 
 // A trimmed copy of what the emulator hub returns for GET /emulators.
 const hubWithFirestore = (host: string, port: number) => ({

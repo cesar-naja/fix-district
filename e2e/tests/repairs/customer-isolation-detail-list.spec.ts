@@ -1,4 +1,4 @@
-// spec: e2e/planner/plans/repair-workflow-approved-batch-1.md
+// spec: e2e/docs/plans/repair-workflow-approved-batch-1.md
 // scenario: B1-03 (source: ISO-01 direct URL, plus the list part of ISO-02)
 // requirements: R10, R11
 //

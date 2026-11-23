@@ -1,12 +1,12 @@
 import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
-import { DEFAULT_EMULATOR_HOST, DEFAULT_EMULATOR_HUB, loadE2EEnv, REPO_ROOT } from './config/env';
+import { DEFAULT_EMULATOR_HOST, DEFAULT_EMULATOR_HUB, loadE2EEnv, REPO_ROOT } from './support/env';
 
 /**
  * Browser (E2E) tests. Design and rules: docs/framework.md and README.md in
  * this workspace.
  *
- * Everything environment-specific comes from config/env.ts, which validates it
+ * Everything environment-specific comes from support/env.ts, which validates it
  * and refuses unsafe values (live Clerk keys, non-demo Firebase projects,
  * non-loopback hosts). The application's Vitest suite (../tests) is separate.
  *
@@ -77,7 +77,7 @@ export default defineConfig({
   /*
    * The regular browser suite: tests/smoke and tests/repairs only. Planner seeds
    * (planner/) have their own config, planner/playwright.config.ts, and the
-   * Vitest guard tests (unit/) are outside this folder.
+   * Vitest guard tests (tests/unit/) use .test.ts and are excluded by testMatch.
    */
   testDir: path.join(__dirname, 'tests'),
   testMatch: '**/*.spec.ts',
@@ -118,9 +118,9 @@ export default defineConfig({
 
   /*
    * Once per runner session (CLI run, UI-mode session, agent run), after the
-   * webServer entries below are up. See setup/global-setup.ts.
+   * webServer entries below are up. See support/global-setup.ts.
    */
-  globalSetup: path.join(__dirname, 'setup', 'global-setup.ts'),
+  globalSetup: path.join(__dirname, 'support', 'global-setup.ts'),
 
   /*
    * No setup project and no project dependencies: every test is runnable on its

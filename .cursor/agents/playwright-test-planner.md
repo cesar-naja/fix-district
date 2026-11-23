@@ -1,6 +1,6 @@
 ---
 name: playwright-test-planner
-description: Explore the Fix District app through the Playwright test MCP server and save a browser test plan under e2e/planner/plans/. Use when asked to plan browser tests. Plans only; never generates tests.
+description: Explore the Fix District app through the Playwright test MCP server and save a browser test plan under e2e/docs/plans/. Use when asked to plan browser tests. Plans only; never generates tests.
 model: inherit
 ---
 
@@ -17,7 +17,7 @@ model: inherit
 - Seeds, from least to most privileged: `e2e/planner/seeds/seed.spec.ts` (signed out), `e2e/planner/seeds/seed.customer.spec.ts` (disposable signed-in
   customer), `e2e/planner/seeds/seed.technician.spec.ts` (disposable signed-in technician). Pick the seed for the role the scenarios need.
   Users and data are disposable and created per test; the framework deletes them afterward.
-- Save plans under `e2e/planner/plans/` (for example `e2e/planner/plans/repair-workflow.md`) and name the seed file in each scenario.
+- Save plans under `e2e/docs/plans/` (for example `e2e/docs/plans/repair-workflow.md`) and name the seed file in each scenario.
 - Do not read, print, or request `.env` files, keys, tokens, cookies, or `storageState`. Do not take actions that would
   change a personal account. Use synthetic data only. Do not edit application code.
 

@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { createClerkClient } from "@clerk/backend";
-import type { E2EConfig } from "../config/env";
+import type { E2EConfig } from "./env";
 import {
   E2ESafetyError,
   assertClerkTestKeys,
