@@ -16,7 +16,7 @@ Not built yet: status changes, estimates, technician assignment, payments, uploa
 
 ## Run it
 
-Manual Jira story automation: [Jira to Codex draft PR workflow](.github/JIRA-CODEX.md)
+Manual Jira story automation: [Jira to Claude Code draft PR workflow](.github/JIRA-CLAUDE.md)
 (starts with `FD-1`, runs Playwright, and leaves review and merging to you).
 
 ```bash
