@@ -1,0 +1,232 @@
+name: Jira story to draft PR
+run-name: 'Claude Code: ${{ inputs.issue_key }}'
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_key:
+        description: Jira issue key
+        required: true
+        default: FD-1
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  implement:
+    # Only trusted workflow code on the default branch may receive secrets.
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      # The action authenticates as the Claude GitHub App through GitHub OIDC.
+      id-token: write
+    outputs:
+      changed: ${{ steps.patch.outputs.changed }}
+      branch: ${{ steps.story.outputs.branch }}
+      base_sha: ${{ steps.story.outputs.base_sha }}
+      claude: ${{ steps.claude.outputs.conclusion || steps.claude.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Read Jira story and prepare feature branch
+        id: story
+        run: |
+          mkdir -p "$RUNNER_TEMP/proposal"
+          node .github/scripts/jira-claude.mjs prepare
+        env:
+          ISSUE_KEY: ${{ inputs.issue_key }}
+          JIRA_BASE_URL: ${{ vars.JIRA_BASE_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_ACCEPTANCE_CRITERIA_FIELD: ${{ vars.JIRA_ACCEPTANCE_CRITERIA_FIELD }}
+      - name: Create feature branch
+        run: git switch -C "$FEATURE_BRANCH"
+        env:
+          FEATURE_BRANCH: ${{ steps.story.outputs.branch }}
+      # Claude can edit anything in the workspace, and the step that refuses
+      # generated .github/ changes only runs after the notes are collected. Run
+      # the notes helper from a copy taken before Claude starts.
+      - name: Copy the notes helper out of the workspace
+        run: cp .github/scripts/jira-claude.mjs "$RUNNER_TEMP/notes-helper.mjs"
+      - run: npm ci
+      # Automation mode: the prompt is supplied, so Claude runs without a mention.
+      # Allowed tools cover reading and editing the workspace only - no Bash, no
+      # git, no GitHub writes. The Playwright job validates the result instead.
+      - name: Implement story with Claude Code
+        id: claude
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: ${{ env.CLAUDE_PROMPT }}
+          claude_args: |
+            --permission-mode default
+            --allowedTools Read,Glob,Grep,Edit,Write,NotebookEdit,TodoWrite
+            --max-turns 60
+      - name: Save Claude implementation notes
+        if: ${{ !cancelled() }}
+        run: node "$RUNNER_TEMP/notes-helper.mjs" notes
+        env:
+          CLAUDE_EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+      - name: Capture proposed changes
+        id: patch
+        run: |
+          git add --all
+          if git diff --cached --name-only HEAD | grep -E '(^\.github/|(^|/)(AGENTS\.md|\.env[^/]*|\.gitmodules)$)'; then
+            echo 'Generated changes to automation, instructions, or credentials require a separate human change.' >&2
+            exit 1
+          fi
+          git diff --cached --binary HEAD > "$RUNNER_TEMP/proposal/changes.patch"
+          if test -s "$RUNNER_TEMP/proposal/changes.patch"; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'Claude Code produced no changes; no draft PR will be opened.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: claude-proposal
+          path: ${{ runner.temp }}/proposal/
+          retention-days: 3
+      - name: Preserve Claude Code failure status
+        if: steps.claude.outcome != 'success' || steps.claude.outputs.conclusion == 'failure'
+        run: exit 1
+
+  draft-pr:
+    needs: implement
+    if: ${{ !cancelled() && needs.implement.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      pr: ${{ steps.publish.outputs.pr }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.implement.outputs.base_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - uses: actions/download-artifact@v4
+        with:
+          name: claude-proposal
+          path: ${{ runner.temp }}/proposal
+      - name: Write PR body
+        run: node .github/scripts/jira-claude.mjs report
+        env:
+          CLAUDE_OUTCOME: ${{ needs.implement.outputs.claude }}
+      # This job never executes generated code or installs its dependencies.
+      - name: Push feature branch and open draft PR
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FEATURE_BRANCH: ${{ needs.implement.outputs.branch }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          ISSUE_KEY: ${{ inputs.issue_key }}
+        run: |
+          git switch -c "$FEATURE_BRANCH"
+          git apply --index "$RUNNER_TEMP/proposal/changes.patch"
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' -c core.hooksPath=/dev/null commit -m "$ISSUE_KEY: Claude Code implementation"
+          gh auth setup-git
+          git push origin "HEAD:refs/heads/$FEATURE_BRANCH"
+          pr="$(gh pr create --draft --base "$BASE_BRANCH" --head "$FEATURE_BRANCH" --title "$ISSUE_KEY: Claude Code implementation" --body-file "$RUNNER_TEMP/pr-body.md")"
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "$pr" >> "$GITHUB_STEP_SUMMARY"
+
+  playwright:
+    needs: [implement, draft-pr]
+    if: ${{ !cancelled() && needs.draft-pr.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Generated code reaches the Clerk test application only after a required
+    # reviewer approves this environment, which is why the draft PR is opened
+    # first. The Clerk secrets live on this environment, not on the repository.
+    environment: generated-code-tests
+    outputs:
+      outcome: ${{ steps.tests.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.implement.outputs.base_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: claude-proposal
+          path: ${{ runner.temp }}/proposal
+      - name: Apply proposed changes
+        run: |
+          git apply --index "$RUNNER_TEMP/proposal/changes.patch"
+          mkdir -p "$RUNNER_TEMP/results"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      # Patched Temurin build for CVE-2026-114938 (Java4Shell), as in playwright.yml.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21.0.13.1+2'
+      - run: npm ci
+      - run: npm exec -w @fix-district/e2e -- playwright install --with-deps chromium
+      - name: Run existing Playwright suite
+        id: tests
+        run: npm run test -w @fix-district/e2e -- --reporter=list,html,json
+        env:
+          E2E_SERVER_MODE: build
+          E2E_TRACE: 'off'
+          E2E_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
+          E2E_CLERK_SECRET_KEY: ${{ secrets.E2E_CLERK_SECRET_KEY }}
+          E2E_CLERK_FRONTEND_API: ${{ secrets.E2E_CLERK_FRONTEND_API }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: ${{ runner.temp }}/results/html
+          PLAYWRIGHT_HTML_OPEN: never
+          PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/results/playwright-results.json
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: jira-playwright-results
+          path: ${{ runner.temp }}/results/
+          if-no-files-found: warn
+          retention-days: 3
+
+  test-report:
+    needs: [draft-pr, playwright]
+    if: ${{ !cancelled() && needs.draft-pr.result == 'success' && needs.playwright.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # The default branch, never the generated branch.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Download available Playwright results
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: jira-playwright-results
+          path: ${{ runner.temp }}/results
+      - name: Write test comment from results
+        run: node .github/scripts/jira-claude.mjs tests
+        env:
+          PLAYWRIGHT_JOB: ${{ needs.playwright.result }}
+          PLAYWRIGHT_OUTCOME: ${{ needs.playwright.outputs.outcome }}
+      # This job never executes generated code or installs its dependencies.
+      - name: Comment Playwright results on the draft PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ needs.draft-pr.outputs.pr }}
+        run: gh pr comment "$PR" --body-file "$RUNNER_TEMP/test-comment.md"

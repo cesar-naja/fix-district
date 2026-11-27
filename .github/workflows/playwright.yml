@@ -19,6 +19,12 @@ jobs:
     # Browser tests need the dedicated Clerk test application's keys, which
     # forks never receive. Skip forked pull requests instead of failing them.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Both environments hold the same Clerk test keys; only the generated-code
+    # one has a required reviewer. The schedule, pushes and manual runs on the
+    # default branch test reviewed code and run unattended; pull requests and
+    # manual runs on a feature branch may carry generated code, so they wait.
+    environment:
+      name: ${{ github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch && 'e2e-tests' || 'generated-code-tests' }}
     env:
       # Production build and start, as the Next.js docs recommend for E2E.
       E2E_SERVER_MODE: build
