@@ -7,6 +7,7 @@ import {
   RepairValidationError,
   type Actor,
 } from "@/lib/repairs/store";
+import type { RepairStatus } from "@/lib/repairs/schema";
 import type { RepairDetail, RepairList } from "@/lib/repairs/types";
 
 /**
@@ -108,6 +109,25 @@ export async function loadMyRepair(
 export async function loadRepairQueue(): Promise<DataResult<RepairList>> {
   const actor = actorFrom(await requireRole("technician"));
   return guarded("queue", () => store().listQueue(actor));
+}
+
+export type StartReviewResult =
+  | { ok: true; status: RepairStatus }
+  | { ok: false; reason: "not_found" | "unavailable" };
+
+/**
+ * Technicians only: moves a Submitted request to In Review. Customers get a
+ * 403 and signed-out visitors are redirected before anything is read.
+ */
+export async function startRepairReview(id: string): Promise<StartReviewResult> {
+  const actor = actorFrom(await requireRole("technician"));
+  try {
+    const status = await store().startReview(actor, id);
+    return status ? { ok: true, status } : { ok: false, reason: "not_found" };
+  } catch (error) {
+    logFailure("startReview", error);
+    return { ok: false, reason: "unavailable" };
+  }
 }
 
 /** Technicians only: any request's details. */

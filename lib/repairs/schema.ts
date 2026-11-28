@@ -14,12 +14,21 @@ export const DEVICE_TYPE_LABEL: Record<DeviceType, string> = {
   console: "Console",
 };
 
-/** Only status that exists in this milestone. Assigned by the server. */
-export type RepairStatus = "submitted";
+/**
+ * Repair statuses, in workflow order. Always assigned by the server: new
+ * requests start as "submitted", and a technician can move one to "in_review".
+ */
+export const REPAIR_STATUSES = ["submitted", "in_review"] as const;
+export type RepairStatus = (typeof REPAIR_STATUSES)[number];
 export const INITIAL_STATUS: RepairStatus = "submitted";
 export const STATUS_LABEL: Record<RepairStatus, string> = {
   submitted: "Submitted",
+  in_review: "In Review",
 };
+
+export function isRepairStatus(value: unknown): value is RepairStatus {
+  return (REPAIR_STATUSES as readonly unknown[]).includes(value);
+}
 
 /** Upper bound on requests read per list. One extra is read to detect "more". */
 export const LIST_LIMIT = 50;
@@ -135,7 +144,7 @@ export function isValidRequestKey(value: unknown): value is string {
   return typeof value === "string" && KEY_PATTERN.test(value);
 }
 
-/** Repair IDs are 40 lowercase hex characters (see repository.ts). */
+/** Repair IDs are 40 lowercase hex characters (see store.ts). */
 const ID_PATTERN = /^[0-9a-f]{40}$/;
 
 export function isValidRepairId(value: unknown): value is string {

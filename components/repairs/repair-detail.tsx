@@ -8,8 +8,17 @@ import {
   statusLabel,
 } from "@/components/repairs/format";
 
-/** Read-only view of one repair request. */
-export function RepairDetailView({ repair }: { repair: RepairDetail }) {
+/**
+ * View of one repair request. `statusControl`, when given, is rendered under
+ * the facts (the technician's "Start review" form); otherwise it is read-only.
+ */
+export function RepairDetailView({
+  repair,
+  statusControl,
+}: {
+  repair: RepairDetail;
+  statusControl?: ReactNode;
+}) {
   const facts: { term: string; value: ReactNode }[] = [
     { term: "Status", value: statusLabel(repair) },
     { term: "Device type", value: deviceTypeLabel(repair) },
@@ -25,14 +34,17 @@ export function RepairDetailView({ repair }: { repair: RepairDetail }) {
 
   return (
     <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
-      <dl className="grid h-fit gap-px border-2 border-ink bg-ink">
-        {facts.map((fact) => (
-          <div key={fact.term} className="bg-paper p-5">
-            <dt className="label text-muted">{fact.term}</dt>
-            <dd className="mt-1 font-semibold">{fact.value}</dd>
-          </div>
-        ))}
-      </dl>
+      <div className="h-fit">
+        <dl className="grid gap-px border-2 border-ink bg-ink">
+          {facts.map((fact) => (
+            <div key={fact.term} className="bg-paper p-5">
+              <dt className="label text-muted">{fact.term}</dt>
+              <dd className="mt-1 font-semibold">{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+        {statusControl}
+      </div>
       <div>
         <h2 className="display text-3xl sm:text-4xl">Problem description</h2>
         <p className="mt-2 label text-muted">

@@ -9,9 +9,11 @@ import {
 } from "@/components/dashboard/dashboard-frame";
 import { deviceName, referenceCode } from "@/components/repairs/format";
 import { RepairDetailView } from "@/components/repairs/repair-detail";
+import { StartReviewForm } from "@/components/repairs/start-review-form";
 import { ButtonLink } from "@/components/ui/button-link";
 import { requireRole } from "@/lib/auth/access";
 import { loadRepairForTechnician } from "@/lib/repairs/server";
+import { startReview } from "./actions";
 
 export const metadata: Metadata = {
   title: "Repair request",
@@ -51,14 +53,26 @@ async function QueuedRepair({ params }: { params: Promise<{ id: string }> }) {
   if (!result.data) notFound();
 
   const repair = result.data;
+  const canStartReview = repair.status === "submitted";
   return (
     <DashboardFrame
       eyebrow={`Repair request · Ref ${referenceCode(repair.id)}`}
       title={deviceName(repair)}
-      intro="Read-only for now. Status changes, estimates, and assignment are not available yet."
+      intro={
+        canStartReview
+          ? "Start the review to let the customer know the shop is looking at this request. Estimates and assignment are not available yet."
+          : "This request is in review. Estimates and assignment are not available yet."
+      }
     >
       <PanelSection id="repair-details" heading="Request details" actions={back}>
-        <RepairDetailView repair={repair} />
+        <RepairDetailView
+          repair={repair}
+          statusControl={
+            canStartReview ? (
+              <StartReviewForm repairId={repair.id} action={startReview} />
+            ) : null
+          }
+        />
       </PanelSection>
     </DashboardFrame>
   );

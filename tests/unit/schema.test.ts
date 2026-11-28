@@ -1,10 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
   LIMITS,
+  STATUS_LABEL,
+  isRepairStatus,
   isValidRepairId,
   isValidRequestKey,
   validateRepairInput,
 } from "@/lib/repairs/schema";
+
+describe("repair statuses", () => {
+  it("knows Submitted and In Review, and nothing else", () => {
+    expect(STATUS_LABEL).toEqual({ submitted: "Submitted", in_review: "In Review" });
+    expect(isRepairStatus("submitted")).toBe(true);
+    expect(isRepairStatus("in_review")).toBe(true);
+    for (const value of ["In Review", "completed", "", undefined, null, 1]) {
+      expect(isRepairStatus(value)).toBe(false);
+    }
+  });
+});
 
 const valid = {
   deviceType: "phone",

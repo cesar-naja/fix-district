@@ -361,4 +361,103 @@ describe("persistence and bounds", () => {
     });
     await expect(store().listForCustomer(customerA)).rejects.toThrow();
   });
+
+  it("treats an unknown stored status as malformed", async () => {
+    await testDb().collection(REPAIRS_COLLECTION).doc("b".repeat(40)).set({
+      ownerId: customerA.userId,
+      deviceType: "phone",
+      brand: "B",
+      model: "M",
+      description: "a record with a status that does not exist",
+      status: "completed",
+      createdAt: Timestamp.now(),
+    });
+    await expect(store().listForCustomer(customerA)).rejects.toThrow();
+  });
+});
+
+describe("starting a review (Submitted → In Review)", () => {
+  it("lets a technician move a Submitted request to In Review, visible in every view", async () => {
+    const { id } = await store().createForCustomer(customerA, input, randomUUID());
+    expect(await store().startReview(technician, id)).toBe("in_review");
+
+    const [{ data }] = await rawRepairDocs();
+    expect(data.status).toBe("in_review");
+
+    // A fresh store models a reload: queue, technician detail, and the owner's views.
+    const reloaded = createRepairStore(testDb());
+    expect((await reloaded.getForTechnician(technician, id))?.status).toBe("in_review");
+    expect((await reloaded.listQueue(technician)).items[0].status).toBe("in_review");
+    expect((await reloaded.getForCustomer(customerA, id))?.status).toBe("in_review");
+    expect((await reloaded.listForCustomer(customerA)).items[0].status).toBe("in_review");
+  });
+
+  it("changes only the status, and only of that request", async () => {
+    const target = await store().createForCustomer(customerA, input, randomUUID());
+    const sibling = await store().createForCustomer(customerA, { ...input, brand: "Other" }, randomUUID());
+    const others = await store().createForCustomer(customerB, input, randomUUID());
+    const before = await rawRepairDocs();
+
+    await store().startReview(technician, target.id);
+
+    const after = await rawRepairDocs();
+    expect(after).toHaveLength(3);
+    for (const doc of after) {
+      const old = before.find((d) => d.id === doc.id)!;
+      if (doc.id === target.id) {
+        expect(doc.data).toEqual({ ...old.data, status: "in_review" });
+      } else {
+        expect(doc.data).toEqual(old.data);
+      }
+    }
+    expect(after.find((d) => d.id === sibling.id)?.data.status).toBe("submitted");
+    expect(after.find((d) => d.id === others.id)?.data.status).toBe("submitted");
+  });
+
+  it("is idempotent: repeated and concurrent calls leave the request In Review", async () => {
+    const { id } = await store().createForCustomer(customerA, input, randomUUID());
+    const results = await Promise.all(
+      Array.from({ length: 3 }, () => store().startReview(technician, id)),
+    );
+    expect(results.every((status) => status === "in_review")).toBe(true);
+    expect(await store().startReview(technician, id)).toBe("in_review");
+    const docs = await rawRepairDocs();
+    expect(docs).toHaveLength(1);
+    expect(docs[0].data.status).toBe("in_review");
+  });
+
+  it("rejects customers (including the owner) and fake actors, changing nothing", async () => {
+    const { id } = await store().createForCustomer(customerA, input, randomUUID());
+    const actors: Actor[] = [
+      customerA,
+      customerB,
+      { userId: "", role: "technician" },
+      { userId: "u", role: "admin" as never },
+    ];
+    for (const actor of actors) {
+      await expect(store().startReview(actor, id)).rejects.toBeInstanceOf(RepairAccessError);
+    }
+    const [{ data }] = await rawRepairDocs();
+    expect(data.status).toBe("submitted");
+  });
+
+  it("returns null for unknown or malformed IDs without creating anything", async () => {
+    for (const bad of ["f".repeat(40), "", "../x", "a/b", "A".repeat(40)]) {
+      expect(await store().startReview(technician, bad)).toBeNull();
+    }
+    expect(await rawRepairDocs()).toHaveLength(0);
+  });
+
+  it("refuses to write to a malformed stored record", async () => {
+    const id = "c".repeat(40);
+    await testDb().collection(REPAIRS_COLLECTION).doc(id).set({
+      ownerId: customerA.userId,
+      createdAt: Timestamp.now(),
+      status: "submitted",
+      // brand/model/deviceType missing
+    });
+    await expect(store().startReview(technician, id)).rejects.toThrow();
+    const [{ data }] = await rawRepairDocs();
+    expect(data.status).toBe("submitted");
+  });
 });

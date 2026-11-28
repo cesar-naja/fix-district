@@ -5,11 +5,13 @@ import type { Role } from "@/lib/auth/roles";
 import {
   INITIAL_STATUS,
   LIST_LIMIT,
+  isRepairStatus,
   isValidRepairId,
   isValidRequestKey,
   validateRepairInput,
   type DeviceType,
   type RepairInput,
+  type RepairStatus,
 } from "@/lib/repairs/schema";
 import type { RepairDetail, RepairList, RepairSummary } from "@/lib/repairs/types";
 
@@ -90,7 +92,7 @@ function toSummary(id: string, data: FirebaseFirestore.DocumentData): RepairSumm
     !(createdAt instanceof Timestamp) ||
     typeof data.brand !== "string" ||
     typeof data.model !== "string" ||
-    data.status !== INITIAL_STATUS ||
+    !isRepairStatus(data.status) ||
     typeof data.deviceType !== "string"
   ) {
     throw new RepairDataError();
@@ -210,6 +212,29 @@ export function createRepairStore(db: Firestore) {
       const data = doc.data();
       if (!doc.exists || !data) return null;
       return toDetail(doc.id, data);
+    },
+
+    /**
+     * Technicians only: moves a request from Submitted to In Review. Runs in a
+     * transaction, so repeated or concurrent calls are safe and a request that
+     * is already In Review stays that way. Only the status field is written.
+     * Returns the resulting status, or null when the request does not exist.
+     */
+    async startReview(actor: Actor, id: string): Promise<RepairStatus | null> {
+      assertActor(actor, "technician");
+      if (!isValidRepairId(id)) return null;
+      const ref = collection.doc(id);
+      return db.runTransaction(async (transaction) => {
+        const doc = await transaction.get(ref);
+        const data = doc.data();
+        if (!doc.exists || !data) return null;
+        // Validates the stored record before writing to it.
+        const { status } = toSummary(doc.id, data);
+        if (status !== "submitted") return status;
+        const next: RepairStatus = "in_review";
+        transaction.update(ref, { status: next });
+        return next;
+      });
     },
   };
 }

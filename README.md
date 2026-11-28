@@ -10,9 +10,12 @@ What exists today:
 - **Repair requests** stored in Firebase Firestore:
   - A customer submits a request (device type, brand, model, problem description) at `/customer/new`.
   - It appears under **My repairs** on `/customer` (newest first, status *Submitted*), and the customer can open its details.
-  - Technicians see every submitted request in the **repair queue** on `/technician` and can open details. Technician access is **read-only**.
+  - Technicians see every submitted request in the **repair queue** on `/technician` and can open details.
+  - On a *Submitted* request's detail page a technician can select **Start review**, which saves the status
+    *In Review*. The queue and the customer's pages show it on their next load. Only technicians can change a
+    status, and this is the only transition so far.
 
-Not built yet: status changes, estimates, technician assignment, payments, uploads, emails, AI features, and Clerk Organizations.
+Not built yet: later status changes, estimates, technician assignment, payments, uploads, emails, AI features, and Clerk Organizations.
 
 ## Run it
 

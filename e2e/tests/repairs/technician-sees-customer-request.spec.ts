@@ -90,12 +90,17 @@ test.describe("Technician view of a customer request", { tag: "@repair" }, () =>
 
       const main = technicianPage.getByRole("main");
       await expect(
-        main.getByText("Read-only for now. Status changes, estimates, and assignment are not available yet."),
+        main.getByText(
+          "Start the review to let the customer know the shop is looking at this request. Estimates and assignment are not available yet.",
+        ),
       ).toBeVisible();
       await expect(main.getByRole("link", { name: "Back to repair queue" })).toBeVisible();
 
-      // Read-only: no form controls in the main region.
-      await expect(main.locator("form, input, textarea, select, button")).toHaveCount(0);
+      // The only control is Start review (FD-1); its use is covered in
+      // technician-start-review.spec.ts. Nothing else is editable.
+      await expect(main.getByRole("button")).toHaveCount(1);
+      await expect(main.getByRole("button", { name: "Start review" })).toBeVisible();
+      await expect(main.locator("textarea, select, input:not([type=hidden])")).toHaveCount(0);
 
       // No owner identifiers are exposed.
       await expect(main).not.toContainText(customer.userId);
@@ -105,6 +110,7 @@ test.describe("Technician view of a customer request", { tag: "@repair" }, () =>
     await test.step("5. As the customer, the detail page shows the same values", async () => {
       await customerPage.goto(`/customer/repairs/${repairId}`);
       await expectDetailValues(customerPage);
+      await expect(customerPage.getByRole("main").getByRole("button")).toHaveCount(0);
     });
   });
 });

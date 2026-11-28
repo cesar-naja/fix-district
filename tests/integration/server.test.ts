@@ -29,6 +29,7 @@ import {
   loadRepairForTechnician,
   loadRepairQueue,
   saveRepairRequest,
+  startRepairReview,
 } from "@/lib/repairs/server";
 import { clearEmulator, rawRepairDocs } from "../helpers/emulator";
 
@@ -60,7 +61,56 @@ describe("signed-out visitors", () => {
     await expect(loadMyRepair(id)).rejects.toThrow("NEXT_REDIRECT");
     await expect(loadRepairQueue()).rejects.toThrow("NEXT_REDIRECT");
     await expect(loadRepairForTechnician(id)).rejects.toThrow("NEXT_REDIRECT");
-    expect(await rawRepairDocs()).toHaveLength(1);
+    await expect(startRepairReview(id)).rejects.toThrow("NEXT_REDIRECT");
+    const docs = await rawRepairDocs();
+    expect(docs).toHaveLength(1);
+    expect(docs[0].data.status).toBe("submitted");
+  });
+});
+
+describe("starting a review", () => {
+  it("lets a technician start the review; both roles then load In Review", async () => {
+    signInAs("user_a", "customer");
+    const saved = await saveRepairRequest(input, randomUUID());
+    const other = await saveRepairRequest({ ...input, brand: "Other" }, randomUUID());
+    const id = saved.ok ? saved.id : "";
+
+    signInAs("tech_1", "technician");
+    expect(await startRepairReview(id)).toEqual({ ok: true, status: "in_review" });
+    // Repeating it is harmless.
+    expect(await startRepairReview(id)).toEqual({ ok: true, status: "in_review" });
+    const detail = await loadRepairForTechnician(id);
+    expect(detail.ok && detail.data?.status).toBe("in_review");
+    const queue = await loadRepairQueue();
+    expect(queue.ok && queue.data.items.find((r) => r.id === id)?.status).toBe("in_review");
+
+    signInAs("user_a", "customer");
+    const mine = await loadMyRepair(id);
+    expect(mine.ok && mine.data?.status).toBe("in_review");
+    const list = await loadMyRepairs();
+    expect(
+      list.ok && list.data.items.find((r) => other.ok && r.id === other.id)?.status,
+    ).toBe("submitted");
+  });
+
+  it("rejects customers, including the request's owner, with a 403", async () => {
+    signInAs("user_a", "customer");
+    const saved = await saveRepairRequest(input, randomUUID());
+    const id = saved.ok ? saved.id : "";
+
+    await expect(startRepairReview(id)).rejects.toThrow("403");
+    signInAs("user_b", "customer");
+    await expect(startRepairReview(id)).rejects.toThrow("403");
+    const [doc] = await rawRepairDocs();
+    expect(doc.data.status).toBe("submitted");
+  });
+
+  it("reports a missing request as not_found", async () => {
+    signInAs("tech_1", "technician");
+    expect(await startRepairReview("0".repeat(40))).toEqual({
+      ok: false,
+      reason: "not_found",
+    });
   });
 });
 
@@ -145,6 +195,10 @@ describe("failures are not shown as empty lists", () => {
     signInAs("tech_1", "technician");
     expect(await loadRepairQueue()).toEqual({ ok: false });
     expect(await loadRepairForTechnician("a".repeat(40))).toEqual({ ok: false });
+    expect(await startRepairReview("a".repeat(40))).toEqual({
+      ok: false,
+      reason: "unavailable",
+    });
 
     // Logs name the operation and error type only: no messages, no user input.
     const logged = log.mock.calls.flat().join(" ");

@@ -26,7 +26,7 @@ async function TechnicianDashboard() {
     <DashboardFrame
       eyebrow="Technician dashboard"
       title={firstName ? `Welcome, ${firstName}` : "Welcome"}
-      intro="Submitted repair requests appear here, newest first. This view is read-only for now."
+      intro="Repair requests appear here, newest first. Open a Submitted request to start its review."
     >
       <PanelSection id="repair-queue" heading="Repair queue">
         {!queue.ok ? (
